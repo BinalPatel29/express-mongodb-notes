@@ -2,8 +2,11 @@ import { apiFetch } from './api.js';
 
 const registerForm = document.getElementById("registerForm");
 if (registerForm) {
+    const firstNameInput = document.getElementById("fname");
+    const lastNameInput = document.getElementById("lname");
     const emailInput = document.getElementById("email");
     const passInput = document.getElementById("password");
+    const mobileNoInput = document.getElementById('mobno');
     const errorDiv = document.getElementById("errorMessage");
     const successDiv = document.getElementById("successMessage");
 
@@ -16,9 +19,15 @@ if (registerForm) {
         successDiv.style.display = "none";
 
         const payload = { 
+            firstName: firstNameInput.value,
+            lastName: lastNameInput.value,
             email: emailInput.value, 
-            password: passInput.value 
+            password: passInput.value
         };
+
+        if (mobileNoInput.value.trim() !== "") {
+            payload.mobileNo = mobileNoInput.value.trim();
+        }
 
         try {
             const response = await apiFetch('/api/auth/register', { 
