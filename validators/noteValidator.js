@@ -11,7 +11,7 @@ export function validateNote(note) {
                  .required()
                  .trim(),
 
-        userId: joi.objectId()
+        userId: JoiObjectId()
                    .required(),
 
         createAt:  joi.date()
