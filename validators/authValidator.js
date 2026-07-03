@@ -3,6 +3,14 @@ import { Schema } from 'mongoose';
 
 export function validateRegister(user){
     const registerSchema = joi.object ({
+        
+        firstName: joi.string()
+                      .min(3)
+                      .required(),
+
+        lastName: joi.string()
+                      .min(3)
+                      .required(),
 
         email: joi.string()
                   .email()
@@ -12,7 +20,11 @@ export function validateRegister(user){
         
         password: joi.string()
                      .min(6)
-                     .required()
+                     .required(),
+                    
+        mobileNo: joi.string()
+                     .length(10)
+                     .pattern(/^[0-9]+$/),
     });
     return registerSchema.validate(user);
 }
@@ -27,5 +39,5 @@ export function validateLogin(user){
         password: joi.string()
                      .required()
     });
-    return validateLogin.validate(user);
+    return loginSchema.validate(user);
 }
