@@ -1,8 +1,13 @@
 * { 
   box-sizing: border-box; 
-  border-radius: 20px;
-  border-color: white;
+  margin: 0;
+  padding: 0;
 } 
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f7f6; 
+}
 
 .login, .register, .notes-wrapper { 
   background-color: rgb(11, 77, 99); 
@@ -19,43 +24,29 @@ h1 {
   text-align: center; 
   padding-top: 10px; 
   font-size: 36px; 
-  margin-bottom: -20px; 
+  margin-bottom: 24px; 
 } 
 
-#errorMessage, .inline-error { 
-  color: rgb(255, 107, 107); 
-  font-size: 20px;
-  font-weight: bold; 
-  margin-top: 15px; 
-  display: none; 
-} 
-
-#successMessage { 
-  color: rgb(81, 207, 102); 
-  font-size: 16px; 
-  margin-top: 15px; 
-  display: none; 
-} 
-
-.input-field { 
+#input-field { 
   padding-top: 20px; 
 } 
 
-.input-field label { 
+#input-field label { 
   font-size: 18px; 
   font-weight: bold; 
   display: inline-block; 
   margin-top: 15px; 
 } 
 
-input[type="text"], input[type="email"], input[type="password"] { 
+input[type="text"], 
+input[type="email"], 
+input[type="password"],
+input[type="tel"] { 
   width: 100%; 
   height: 50px; 
   padding: 12px; 
   margin-top: 8px; 
-  border-width: 1px; 
-  border-style: solid; 
-  border-color: rgb(204, 204, 204); 
+  border: 1px solid rgb(204, 204, 204); 
   border-radius: 4px; 
   font-size: 16px; 
   background-color: rgb(255, 255, 255); 
@@ -84,6 +75,21 @@ input[type="submit"]:hover {
   border-color: rgb(255, 255, 255); 
 } 
 
+#errorMessage, .inline-error { 
+  color: rgb(255, 107, 107); 
+  font-size: 20px;
+  font-weight: bold; 
+  margin-top: 15px; 
+  display: none; 
+} 
+
+#successMessage { 
+  color: rgb(81, 207, 102); 
+  font-size: 16px; 
+  margin-top: 15px; 
+  display: none; 
+} 
+
 p { 
   font-size: 16px; 
   padding-top: 25px; 
@@ -107,13 +113,6 @@ a:hover {
   width: 100%;
 }
 
-h1 { 
-  text-align: center; 
-  padding-top: 10px; 
-  font-size: 50px; 
-  margin-bottom: 24px;
-} 
-
 .notes-card {
   background-color: rgb(11, 77, 99); 
   color: rgb(240, 248, 255); 
@@ -125,100 +124,100 @@ h1 {
 }
 
 .logout {
-    display: flex;
-    justify-content: flex-end; 
-    margin-bottom: 15px;
-    width: 100%;
+  display: flex;
+  justify-content: flex-end; 
+  margin-bottom: 15px;
+  width: 100%;
 }
 
 #logoutBtn {
-    background-color: #dc3545;
-    color: #ffffff; 
-    border-radius: 8px;
-    font-weight: bold; 
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    width: 100%; 
-    max-width: 150px;
-    height: 50px; 
-    font-size: 20px;
-    border-color: white;
+  background-color: #dc3545;
+  color: #ffffff; 
+  border-radius: 8px;
+  font-weight: bold; 
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  width: 100%; 
+  max-width: 150px;
+  height: 50px; 
+  font-size: 20px;
+  border: 1px solid white;
 }
 
 #logoutBtn:hover {
-    background-color: #bd2130; 
+  background-color: #bd2130; 
 }
 
 .empty-state {
-    text-align: center;
-    color: rgba(241, 243, 245, 0.7); 
-    margin: 20px 0;
-    font-style: italic;
-    font-size: 25px;
-    font-weight: bold;
+  text-align: center;
+  color: rgba(241, 243, 245, 0.7); 
+  margin: 20px 0;
+  font-style: italic;
+  font-size: 25px;
+  font-weight: bold;
 }
 
 #noteList {
-    text-align: left;
-    margin-top: 20px;
-    margin-bottom: 10px;
-    padding-top: 10px;
-    padding-bottom: 50px;
-    display: flex;
-    font-size: 20px;
-    flex-direction: column;
-    gap: 10px; 
-    background-color: rgb(11, 77, 99);
-    color: white;
+  text-align: left;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  padding: 10px 0 50px;
+  display: flex;
+  font-size: 20px;
+  flex-direction: column;
+  gap: 10px; 
+  background-color: rgb(11, 77, 99);
+  color: white;
 }
 
 .note-text {
-    margin-left: 30px;
-    text-align: left;
-    font-size: 25px;
-    font-weight: bold;
-    border-color: none;
+  margin-left: 30px;
+  text-align: left;
+  font-size: 25px;
+  font-weight: bold;
 }
 
 .note-date {
-    margin-left: 30px;
-    font-weight: bold;
+  margin-left: 30px;
+  font-weight: bold;
 }
 
-#noteInput{
-    width: 78%;
-    font-size: 23px;
-    font-weight: bold;
-    border-radius: 8px;
-    border: none;
+#noteInput {
+  width: 78%;
+  font-size: 23px;
+  font-weight: bold;
+  border-radius: 8px;
+  border: none;
+  padding: 10px; 
 }
 
-.add-btn{
-    height: 50px;
-    width: 21%;
-    font-size: 20px;
-    font-weight: bold;
-    margin-top: 40px;
-    border-radius: 8px;
-    background-color: #ccf1f5;
-    cursor: pointer;
-    border: none;
+.add-btn {
+  height: 50px;
+  width: 21%;
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 40px;
+  border-radius: 8px;
+  background-color: #ccf1f5;
+  cursor: pointer;
+  border: none;
 }
 
 .note-del {
-    display: flex;
-    justify-content: center;
-    background-color: #dc3545;
-    color: #ffffff; 
-    border-radius: 8px;
-    font-weight: bold; 
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    width: 100%; 
-    max-width: 150px;
-    height: 50px; 
-    font-size: 25px;
-    border-color: white;
-    margin-left: 30px;
-    padding: 8px 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #dc3545;
+  color: #ffffff; 
+  border-radius: 8px;
+  font-weight: bold; 
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  width: 100%; 
+  max-width: 150px;
+  height: 50px; 
+  font-size: 25px;
+  border: 1px solid white;
+  margin-left: 30px;
+  padding: 8px 16px;
 }

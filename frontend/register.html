@@ -15,10 +15,16 @@
         
         <form id = "registerForm">
            <div id="input-field">
+                <label for="fname">FirstName:</label><br>
+                <input type="text" id="fname" placeholder="Enter your first name" required><br><br>
+                <label for="lname">LastName:</label><br>
+                <input type="text" id="lname" placeholder="Enter your last name" required><br><br>
                 <label for="email">Email:</label><br>
                 <input type="email" id="email" placeholder="Enter your email" required><br><br>
                 <label for="password" >Password:</label><br>
-                <input type="password" id="password" name="password" minlength="8" placeholder="Enter your password" required><br><br>
+                <input type="password" id="password" name="password" minlength="6" placeholder="Enter your password" required><br><br>
+                <label for="mobno">Mobile No:</label><br>
+                <input type="tel" id="mobno" maxlength="10" pattern="[0-9]{10}" placeholder="Enter your phone number"><br><br>
                 <input type="submit" value="Register">
             </div>
         </form>
