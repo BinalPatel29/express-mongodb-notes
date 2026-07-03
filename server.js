@@ -1,11 +1,14 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import 'dotenv/config';
+import dotenv from 'dotenv'; // Corrected import syntax for dotenv
 import authRouter from './routes/authRoutes.js';
 import noteRouter from './routes/noteRoutes.js';
 import { protect } from './middleware/auth.js';
 import cors from 'cors';
-import logger from './src/utils/logger.js'; 
+import logger from './src/utils/logger.js';
+import User from './models/userModel.js';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,8 +30,14 @@ if (!process.env.MONGO_URI) {
 }
 
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
+  .then(async () => {
     logger.info('Database connection verified: MongoDB connected successfully');
+    try {
+      await User.syncIndexes();
+      logger.info('Database collection indexes synchronized successfully');
+    } catch (indexError) {
+      logger.warn({ error: indexError.message }, 'Non-fatal database index synchronization warning');
+    }
   })
   .catch((err) => {
     logger.error({ error: err.message, stack: err.stack }, 'Database operational system connection failed');
@@ -65,12 +74,7 @@ app.use((err, req, res, next) => {
 
 app.use((err, req, res, next) => {
   logger.error(
-    { 
-      path: req.path, 
-      method: req.method, 
-      error: err.message, 
-      stack: err.stack 
-    }, 
+    { path: req.path, method: req.method, error: err.message, stack: err.stack },
     'Server encountered unhandled downstream exception crash error'
   );
   res.status(500).json({ message: 'Internal Server Error' });
