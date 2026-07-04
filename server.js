@@ -1,6 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv'; // Corrected import syntax for dotenv
+import dotenv from 'dotenv'; 
 import authRouter from './routes/authRoutes.js';
 import noteRouter from './routes/noteRoutes.js';
 import { protect } from './middleware/auth.js';
