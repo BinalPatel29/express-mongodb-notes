@@ -7,7 +7,6 @@ import logger from '../src/utils/logger.js';
 const router = express.Router();
 
 router.post('/register', async (req, res, next) => {
-    console.log('route called')
     const logContext = { path: '/register', method: 'POST' };
     try {
         const { error } = validateRegister(req.body);
@@ -33,8 +32,7 @@ router.post('/register', async (req, res, next) => {
     }
     catch (error) {
         logger.error({ ...logContext, error: error.message, stack: error.stack }, "Internal crash during user registration");
-        // next(error);
-         res.status(400).json({ message: err.message });
+        next(error);
     }
 });
 

@@ -54,7 +54,7 @@ app.use('/js', express.static('js'));
 app.use('/css', express.static('css'));
 
 app.get('/', (req, res) => {
-  res.redirect('/frontend/register.html'); 
+  res.redirect('/frontend/register.html');
 });
 
 app.use((req, res) => {
@@ -64,7 +64,7 @@ app.use((req, res) => {
 
 app.use((err, req, res, next) => {
   if (err.name === 'CastError') {
-    logger.warn({ path: req.path, method: req.method, error: err.message }, 'Database manipulation payload blocked: Invalid ID structure');
+    logger.warn({ path: req.path, method: req.method, error: err.message }, 'Database manipulation payload blocked: Invalid ID structural string layout query payload detected');
     return res.status(400).json({ error: 'Invalid note ID format' });
   }
   next(err);
@@ -84,5 +84,5 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  logger.info(`Server initialized interface: Process actively listening on port: ${PORT}`);
+  logger.info(`Server initialized interface: Process actively listening on web communications interface port bindings: ${PORT}`);
 });
