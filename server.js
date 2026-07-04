@@ -1,14 +1,12 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv'; 
+import 'dotenv/config';
 import authRouter from './routes/authRoutes.js';
 import noteRouter from './routes/noteRoutes.js';
 import { protect } from './middleware/auth.js';
 import cors from 'cors';
-import logger from './src/utils/logger.js';
-import User from './models/userModel.js';
-
-dotenv.config();
+import logger from './src/utils/logger.js'; 
+import User from './models/userModel.js'; 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -74,7 +72,12 @@ app.use((err, req, res, next) => {
 
 app.use((err, req, res, next) => {
   logger.error(
-    { path: req.path, method: req.method, error: err.message, stack: err.stack },
+    { 
+      path: req.path, 
+      method: req.method, 
+      error: err.message, 
+      stack: err.stack 
+    }, 
     'Server encountered unhandled downstream exception crash error'
   );
   res.status(500).json({ message: 'Internal Server Error' });
