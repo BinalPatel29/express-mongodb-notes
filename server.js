@@ -22,7 +22,7 @@ app.use(helmet({
 // 2. CORS CONFIGURATION 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',')
-  : ['http://localhost:3000'];
+  : ['http://localhost:3000', 'http://127.0.0.1:5501']; 
   
 const corsOptions = {
   origin: function (origin, callback) {
@@ -30,7 +30,7 @@ const corsOptions = {
       callback(null, true);
     } else {
       logger.warn({ origin }, "CORS blocked unauthorized origin request");
-      callback(new Error("Not allowed by CORS"));
+      callback(null, false);
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD'],
