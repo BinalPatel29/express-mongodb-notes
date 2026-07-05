@@ -7,6 +7,7 @@ import { protect } from './middleware/auth.js';
 import cors from 'cors';
 import logger from './src/utils/logger.js'; 
 import User from './models/userModel.js'; 
+import errorHandler from './middleware/errorHandler.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -41,6 +42,10 @@ mongoose.connect(process.env.MONGO_URI)
     logger.error({ error: err.message, stack: err.stack }, 'Database operational system connection failed');
   });
 
+app.use('/frontend', express.static('frontend'));
+app.use('/js', express.static('js'));
+app.use('/css', express.static('css'));
+
 app.get('/api/new', (req, res) => {
   logger.info({ path: '/api/new', method: 'GET' }, 'Healthcheck baseline verification requested');
   res.status(200).json({ message: 'ok' });
@@ -48,10 +53,6 @@ app.get('/api/new', (req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/notes', protect, noteRouter);
-
-app.use('/frontend', express.static('frontend'));
-app.use('/js', express.static('js'));
-app.use('/css', express.static('css'));
 
 app.get('/', (req, res) => {
   res.redirect('/frontend/register.html');
@@ -62,26 +63,7 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-app.use((err, req, res, next) => {
-  if (err.name === 'CastError') {
-    logger.warn({ path: req.path, method: req.method, error: err.message }, 'Database manipulation payload blocked: Invalid ID structural string layout query payload detected');
-    return res.status(400).json({ error: 'Invalid note ID format' });
-  }
-  next(err);
-});
-
-app.use((err, req, res, next) => {
-  logger.error(
-    { 
-      path: req.path, 
-      method: req.method, 
-      error: err.message, 
-      stack: err.stack 
-    }, 
-    'Server encountered unhandled downstream exception crash error'
-  );
-  res.status(500).json({ message: 'Internal Server Error' });
-});
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   logger.info(`Server initialized interface: Process actively listening on web communications interface port bindings: ${PORT}`);
