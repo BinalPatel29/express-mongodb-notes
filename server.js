@@ -10,6 +10,7 @@ import User from './models/userModel.js';
 import errorHandler from './middleware/errorHandler.js';
 import helmet from 'helmet';         // Secures server against hackers
 import { rateLimit } from 'express-rate-limit';        // Overloading server with request
+import { createClient } from 'redis';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -83,9 +84,24 @@ if (!process.env.MONGO_URI) {
   process.exit(1);
 }
 
+// Redis connection client
+const redisClient = createClient({
+  url: process.env.REDIS_URL || 'redis://localhost:6379'
+});
+redisClient.on('error' , (err) =>  {logger.error({ error: err.message}, 'Redis engine connection error')});
+
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     logger.info('Database connection verified: MongoDB connected successfully');
+    
+    try {
+      await redisClient.connect();
+      logger.info('Cache connection verified: Redis engine connected successfully');
+      global.redisClient = redisClient;
+    } catch (redisError) {
+      logger.error({ error: redisError.message }, 'Critical initialization error: Redis setup failed');
+    }
+
     try {
       await User.syncIndexes();
       logger.info('Database collection indexes synchronized successfully');
