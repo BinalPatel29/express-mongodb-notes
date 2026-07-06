@@ -15,7 +15,6 @@ const { MongoMemoryServer } = await import('mongodb-memory-server');
 const express = (await import('express')).default;
 const helmet = (await import('helmet')).default;
 const cors = (await import('cors')).default;
-
 const authRouter = (await import('../routes/authRoutes.js')).default;
 const noteRouter = (await import('../routes/noteRoutes.js')).default;
 const { protect } = await import('../middleware/auth.js');

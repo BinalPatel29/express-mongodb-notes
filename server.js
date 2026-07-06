@@ -8,18 +8,18 @@ import cors from 'cors';
 import logger from './src/utils/logger.js'; 
 import User from './models/userModel.js'; 
 import errorHandler from './middleware/errorHandler.js';
-import helmet from 'helmet';
-import { rateLimit } from 'express-rate-limit';
+import helmet from 'helmet';         // Secures server against hackers
+import { rateLimit } from 'express-rate-limit';        // Overloading server with request
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 1. HELMET HEADERS 
+// HELMET HEADERS 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// 2. CORS CONFIGURATION 
+// CORS CONFIGURATION 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',')
   : ['http://localhost:3000', 'http://127.0.0.1:5501']; 
@@ -35,17 +35,17 @@ const corsOptions = {
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD'],
   credentials: true,
-  optionsSuccessStatus: 204
+  optionsSuccessStatus: 204       // success status-code
 };
 app.use(cors(corsOptions));
 
-// 3. GLOBAL RATE LIMITER 
+// GLOBAL RATE LIMITER 
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: { status: 429, error: "Too many requests, please try again later." },
-  standardHeaders: false,
-  legacyHeaders: false,
+  standardHeaders: false,        // sends-modern, http-headers
+  legacyHeaders: false,          // sends-older, rate-limit-headers
   handler: (req, res, next, options) => {
     logger.warn({ ip: req.ip, path: req.path }, "Global rate limit exceeded by client ip");
     res.status(options.statusCode).json(options.message);
@@ -53,7 +53,7 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// 4. AUTH RATE LIMITER
+// AUTH RATE LIMITER
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 20, 

@@ -21,10 +21,10 @@ const errorHandler = (err, req, res, next) => {
 
     logger.error(
        { 
-        path: req.path, 
+        path: req.path,        // Which page or route failed
         method: req.method, 
         error: message, 
-        stack: err.stack 
+        stack: err.stack       // The exact code file name and line number where the crash happened
        }, 
        'Server encountered unhandled downstream exception crash error'
     );

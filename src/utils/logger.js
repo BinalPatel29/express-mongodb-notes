@@ -1,4 +1,4 @@
-import pino from 'pino'
+import pino from 'pino'     // writes super-fast server logs
 
 const logger = pino ({
     level: process.env.LOG_LEVEL || 'info',

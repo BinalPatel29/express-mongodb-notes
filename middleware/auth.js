@@ -5,7 +5,7 @@ export function protect(req,res,next){
 
     if(!authHeader || !authHeader.startsWith('Bearer ')){
          const error = new Error("No token provided");
-         error.statusCode = 401;
+         error.statusCode = 401;        // unauthorized
          throw error;
     }
 

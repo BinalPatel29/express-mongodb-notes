@@ -9,7 +9,6 @@ const userSchema = new mongoose.Schema({
   mobileNo: { type: String }
 });
 
-// REMOVED 'next' parameter and calls
 userSchema.pre('save', async function () {
   if (!this.isModified('password')) return;
 
