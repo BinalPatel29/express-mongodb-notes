@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcrypt';        // securely hashing and storing user passwords
 
 const userSchema = new mongoose.Schema({
   firstName: { type: String, required: true },
@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
   mobileNo: { type: String }
 });
 
-userSchema.pre('save', async function () {
+userSchema.pre('save', async function () {     // pre-save middleware hook that automatically runs a custom asynchronous function on a document right before it is saved to MongoDB
   if (!this.isModified('password')) return;
 
   try {
