@@ -6,8 +6,65 @@ import logger from '../src/utils/logger.js';
 const router = Router();
 
 router.get('/', async(req, res, next) => {
-    const notes = await Note.find({ userId : req.userId });
-    res.json(notes);
+    let { page= 1, limit= 10, sort = '-createdAt', text} = req.query;
+
+    page = Math.max(1, parseInt(page, 10) || 1);
+    limit = Math.max(1, parseInt(limit, 10) || 10);
+
+    const filter = {
+        userId : req.userId,
+        ...(text && {text: {$regex: text, $options:'i'}} )
+        };
+
+    const allowedSort = ['createdAt', 'updatedAt', 'text', '-createdAt', '-updatedAt', '-text'];
+    const finalSort = allowedSort.includes(sort) ? sort : '-createdAt';
+
+    const [notes, totalItems] = await Promise.all([
+            Note.find(filter).sort(finalSort).skip((page-1)*limit).limit(limit).lean(),
+            Note.countDocuments(filter)
+        ]);
+        
+    res.json({
+        success: true,
+        data: notes,
+        pagination: {
+            totalItems,
+            totalPages : Math.ceil(totalItems/limit),
+            currentPage: page
+        }
+    });
+});
+
+router.get('/stats/summary', async (req, res, next) => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate-30);
+
+    const statistics = await Note.aggregate([
+        { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+        { $group: { _id: '$userId', totalNoteLastThirtyDays: { $sum: 1 } } },
+        { $lookup: {
+            from: 'users',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'userProfile'
+            }
+        },
+        { $unwind: '$userProfile' },
+        { $project: {
+            '_id': 1,
+            'totalNoteLastThirtyDays': 1,
+            'userProfile.fullName': {
+                $concat: [
+                    { $ifNull: ['$userProfile.firstName','']},
+                    ' ',
+                    { $ifNull: ['$userProfile.lastName','']}
+                ]
+            },
+            'userProfile.email': 1
+            }
+        }
+    ]);
+    res.json({ success: true, data: statistics});
 });
 
 router.get('/:id', async (req, res, next) => {
