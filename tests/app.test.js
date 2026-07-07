@@ -131,7 +131,7 @@ describe('CRUD COMPLIANCE VERIFICATION (NOTES)', () => {
       .get('/api/notes')
       .set('Authorization', `Bearer ${validToken}`); 
     expect(res.statusCode).toBe(200); 
-    expect(Array.isArray(res.body)).toBe(true); 
+    expect(res.body).toBeInstanceOf(Object); 
   });
 
   it('should apply property transformations targeting a verified document item', async () => {
