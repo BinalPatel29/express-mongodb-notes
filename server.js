@@ -8,8 +8,8 @@ import cors from 'cors';
 import logger from './src/utils/logger.js'; 
 import User from './models/userModel.js'; 
 import errorHandler from './middleware/errorHandler.js';
-import helmet from 'helmet';         // Secures server against hackers
-import { rateLimit } from 'express-rate-limit';        // Overloading server with request
+import helmet from 'helmet';         
+import { rateLimit } from 'express-rate-limit';        
 import { createClient } from 'redis';
 
 const app = express();
@@ -31,12 +31,12 @@ const corsOptions = {
             callback(null, true);
         } else {
             logger.warn({ origin }, "CORS blocked unauthorized origin request");
-        callback(null, false);
+            callback(null, false);
         }
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD'],
     credentials: true,
-    optionsSuccessStatus: 204       // success status-code
+    optionsSuccessStatus: 204       
 };
 app.use(cors(corsOptions));
 
@@ -45,8 +45,8 @@ const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
     message: { status: 429, error: "Too many requests, please try again later." },
-    standardHeaders: false,        // sends-modern, http-headers
-    legacyHeaders: false,          // sends-older, rate-limit-headers
+    standardHeaders: false,        
+    legacyHeaders: false,          
     handler: (req, res, next, options) => {
         logger.warn({ ip: req.ip, path: req.path }, "Global rate limit exceeded by client ip");
         res.status(options.statusCode).json(options.message);
@@ -69,29 +69,34 @@ const authLimiter = rateLimit({
 
 app.use(express.json());
 
-// Malformed JSON Middleware
+// MALFORMED JSON MIDDLEWARE
 app.use((err, req, res, next) => {
     if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
         logger.warn({ path: req.path, method: req.method }, 'Incoming request failed: Malformed JSON payload received');
         return res.status(400).json({ status: 400, message: 'Malformed JSON payload' });
     }
-    next(err);
+    next();
 });
 
-// Database Connection
+// DATABASE CONNECTION
 if (!process.env.MONGO_URI) {
     logger.fatal('Application crash initialization error: Missing MONGO_URI string inside environment configuration settings');
     process.exit(1);
 }
 
-// Redis connection client
+// REDIS CONNECTION CLIENT
 const redisClient = createClient({
-    url: process.env.REDIS_URL || 'redis://localhost:6379'
+    url: process.env.REDIS_URL || 'redis://127.0.0.1:6379'
 });
-redisClient.on('error' , (err) =>  {logger.error({ error: err.message}, 'Redis engine connection error')});
 
-mongoose.connect(process.env.MONGO_URI)
-    .then(async () => {
+redisClient.on('error', (err) => {
+    logger.error({ error: err.message }, 'Redis engine connection error');
+    global.redisClient = null;
+});
+
+async function startDatabases() {
+    try {
+        await mongoose.connect(process.env.MONGO_URI);
         logger.info('Database connection verified: MongoDB connected successfully');
     
         try {
@@ -99,26 +104,29 @@ mongoose.connect(process.env.MONGO_URI)
             logger.info('Cache connection verified: Redis engine connected successfully');
             global.redisClient = redisClient;
         } catch (redisError) {
-        logger.error({ error: redisError.message }, 'Critical initialization error: Redis setup failed');
+            logger.error({ error: redisError.message }, 'Critical initialization error: Redis setup failed');
+            global.redisClient = null;
         }
 
         try {
             await User.syncIndexes();
             logger.info('Database collection indexes synchronized successfully');
         } catch (indexError) {
-        logger.warn({ error: indexError.message }, 'Non-fatal database index synchronization warning');
+            logger.warn({ error: indexError.message }, 'Non-fatal database index synchronization warning');
         }
-    })
-    .catch((err) => {
+    } catch (err) {
         logger.error({ error: err.message, stack: err.stack }, 'Database operational system connection failed');
-});
+    }
+}
 
-// Static Assets
+startDatabases();
+
+// STATIC ASSETS
 app.use('/frontend', express.static('frontend'));
 app.use('/js', express.static('js'));
 app.use('/css', express.static('css'));
 
-// Routes
+// ROUTES
 app.get('/api/new', (req, res) => {
     logger.info({ path: '/api/new', method: 'GET' }, 'Healthcheck baseline verification requested');
     res.status(200).json({ message: 'ok' });
@@ -132,13 +140,13 @@ app.get('/', (req, res) => {
     res.redirect('/frontend/register.html');
 });
 
-// Fallback 404
+// FALLBACK 404
 app.use((req, res) => {
     logger.warn({ path: req.path, method: req.method }, 'Client attempted to hit non-existent endpoint pipeline');
     res.status(404).json({ error: 'Route not found' });
 });
 
-// Global Error Interceptor
+// GLOBAL ERROR INTERCEPTOR
 app.use(errorHandler);
 
 app.listen(PORT, () => {
