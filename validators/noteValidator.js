@@ -14,7 +14,7 @@ export function validateNote(note) {
         userId: joi.objectId()
                    .required(),
 
-        createAt:  joi.date()
+        createdAt:  joi.date()
                       .iso()
     });
     return notesSchema.validate(note);

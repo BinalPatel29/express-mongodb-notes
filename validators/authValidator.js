@@ -1,5 +1,4 @@
 import joi from 'joi';
-import { Schema } from 'mongoose';
 
 export function validateRegister(user){
     const registerSchema = joi.object ({
