@@ -16,6 +16,9 @@ import cookieParser from 'cookie-parser';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(express.json());
+app.use(cookieParser());
+
 // HELMET HEADERS 
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }
@@ -36,7 +39,7 @@ const corsOptions = {
         }
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD'],
-    credentials: true,
+    credentials: true,       
     optionsSuccessStatus: 204       
 };
 app.use(cors(corsOptions));
@@ -67,9 +70,6 @@ const authLimiter = rateLimit({
         res.status(options.statusCode).json(options.message);
     }
 });
-
-app.use(express.json());
-app.use(cookieParser());
 
 // MALFORMED JSON MIDDLEWARE
 app.use((err, req, res, next) => {

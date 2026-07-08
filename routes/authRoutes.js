@@ -9,17 +9,25 @@ export const asyncHandler = (fn) => (req, res, next) => {
 };
 
 const router = express.Router();
+
 const setRefreshTokenCookies = (res, token) => {
     res.cookie('refresh_token', token, {
         httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
+        secure: process.env.NODE_ENV === 'production', 
+        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', 
         path: '/',
         maxAge: 7 * 24 * 60 * 60 * 1000
     });
 };
 
-router.post('/register',asyncHandler( async (req, res, next) => {
+const cookieClearOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    path: '/'
+};
+
+router.post('/register', asyncHandler(async (req, res, next) => {
     const logContext = { path: '/register', method: 'POST' };
     const { error } = validateRegister(req.body);
 
@@ -74,7 +82,7 @@ router.post('/login', asyncHandler(async (req, res, next) => {
             
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-        logger.warn({ ...logContext, userId: user._id}, "Login failed: Invalid password credentials entered");
+        logger.warn({ ...logContext, userId: user._id }, "Login failed: Invalid password credentials entered");
             
         const appError = new Error('Invalid credentials');
         appError.statusCode = 401;
@@ -82,7 +90,7 @@ router.post('/login', asyncHandler(async (req, res, next) => {
     }
 
     if (!process.env.JWT_SECRET || !process.env.REFRESH_TOKEN_SECRET) {
-        logger.error({ ...logContext }, "Server configuration mistake: JWT_SECRET environment property missing" );
+        logger.error({ ...logContext }, "Server configuration mistake: JWT_SECRET environment property missing");
         const appError = new Error('Server environment configuration missing');
         appError.statusCode = 500;
         throw appError;
@@ -97,7 +105,7 @@ router.post('/login', asyncHandler(async (req, res, next) => {
     const refreshToken = jwt.sign(
         { userId: user._id },
         process.env.REFRESH_TOKEN_SECRET,
-        { expiresIn: '7d'}
+        { expiresIn: '7d' }
     );
 
     user.refreshTokens.push(refreshToken);
@@ -109,10 +117,13 @@ router.post('/login', asyncHandler(async (req, res, next) => {
     res.json({ token });
 }));
 
-router.post('/refresh',asyncHandler( async (req, res, next) => {
+router.post('/refresh', asyncHandler(async (req, res, next) => {
     const logContext = { path: '/refresh', method: 'POST' };
     const cookies = req.cookies;
-    if (!cookies?.refresh_token) return res.status(401).json({ message: 'unauthorized' });
+    
+    if (!cookies?.refresh_token) {
+        return res.status(401).json({ message: 'unauthorized' });
+    }
 
     const oldRefreshToken = cookies.refresh_token;
     const user = await User.findOne({ refreshTokens: oldRefreshToken });
@@ -124,7 +135,7 @@ router.post('/refresh',asyncHandler( async (req, res, next) => {
                 logger.error({ ...logContext, userId: decoded.userId }, "Breach threat detected: All active tokens purged.");
             }
         });
-        res.clearCookie('refresh_token', { httpOnly: true, secure: true, sameSite: 'strict', path: '/' });
+        res.clearCookie('refresh_token', cookieClearOptions);
         return res.status(403).json({ message: 'compromised session: please, re-authentication' });
     }
 
@@ -132,7 +143,7 @@ router.post('/refresh',asyncHandler( async (req, res, next) => {
         if (err) {
             user.refreshTokens = user.refreshTokens.filter(rt => rt !== oldRefreshToken);
             await user.save();
-            res.clearCookie('refresh_token', { httpOnly: true, secure: true, sameSite: 'strict', path: '/' });
+            res.clearCookie('refresh_token', cookieClearOptions);
             return res.status(403).json({ message: 'Session expired' });
         }
 
@@ -160,7 +171,7 @@ router.post('/logout-all', asyncHandler(async (req, res, next) => {
         user.refreshTokens = [];
         await user.save();
     }
-    res.clearCookie('refresh_token', { httpOnly: true, secure: true, sameSite: 'strict', path: '/' });
+    res.clearCookie('refresh_token', cookieClearOptions);
     res.json({ message: 'successfully logout from everywhere' });
 }));
 
