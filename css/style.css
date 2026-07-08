@@ -136,6 +136,62 @@ a:hover {
   max-width: 100%; 
   border-radius: 8px; 
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 20px; /* Added card internal spacing */
+}
+
+/* FIX 1: Added input block wrapper so controls line up perfectly */
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+#noteInput {
+  flex: 1; /* Automatically scales space dynamically */
+  font-size: 23px;
+  font-weight: bold;
+  border-radius: 8px;
+  border: none;
+  padding: 10px; 
+  height: 50px;
+}
+
+/* FIX 2: Modernized custom layout theme for file selector */
+#fileInput {
+  font-size: 16px;
+  font-weight: bold;
+  background-color: rgba(255, 255, 255, 0.15);
+  padding: 10px;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  border: 1px dashed rgba(255, 255, 255, 0.4);
+  max-width: 250px;
+}
+
+#fileInput::-webkit-file-upload-button {
+  background-color: white;
+  color: rgb(11, 77, 99);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.add-btn {
+  height: 50px;
+  padding: 0 25px;
+  font-size: 20px;
+  font-weight: bold;
+  border-radius: 8px;
+  background-color: #ccf1f5;
+  cursor: pointer;
+  border: none;
+  white-space: nowrap;
 }
 
 .logout {
@@ -180,42 +236,44 @@ a:hover {
   display: flex;
   font-size: 20px;
   flex-direction: column;
-  gap: 10px; 
+  gap: 15px; 
   background-color: rgb(11, 77, 99);
   color: white;
 }
 
+/* FIX 3: Styled card wrappers for seamless rendering of text, pictures, and delete icons */
+.note-item {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .note-text {
-  margin-left: 30px;
+  margin-left: 0; /* Reset margins to work inside item container */
   text-align: left;
   font-size: 25px;
   font-weight: bold;
 }
 
+/* FIX 4: Implemented explicit formatting parameters for image attachments */
+.note-img {
+  max-width: 300px;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  margin-top: 5px;
+}
+
 .note-date {
-  margin-left: 30px;
+  margin-left: 0;
+  font-size: 14px;
+  color: rgba(240, 248, 255, 0.7);
   font-weight: bold;
-}
-
-#noteInput {
-  width: 78%;
-  font-size: 23px;
-  font-weight: bold;
-  border-radius: 8px;
-  border: none;
-  padding: 10px; 
-}
-
-.add-btn {
-  height: 50px;
-  width: 21%;
-  font-size: 20px;
-  font-weight: bold;
-  margin-top: 40px;
-  border-radius: 8px;
-  background-color: #ccf1f5;
-  cursor: pointer;
-  border: none;
 }
 
 .note-del {
@@ -228,11 +286,10 @@ a:hover {
   font-weight: bold; 
   cursor: pointer;
   transition: background-color 0.2s ease;
-  width: 100%; 
-  max-width: 150px;
-  height: 50px; 
-  font-size: 25px;
+  width: 120px; 
+  height: 40px; 
+  font-size: 16px;
   border: 1px solid white;
-  margin-left: 30px;
-  padding: 8px 16px;
+  margin-left: 0;
+  padding: 4px 8px;
 }

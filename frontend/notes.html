@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-
 <div class="notes-wrapper">
     <h1>📒 NOTES</h1>
     
@@ -16,9 +15,13 @@
     </div>
     
     <div class="notes-card">
-        <input type="text" id="noteInput" placeholder="Write your note..." required>
-        <button class="add-btn" id="addnoteBtn">+ Add Notes</button>
-        
+
+        <div class="input-row">
+           <input type="text" id="noteInput" placeholder="Write your note..." required>
+           <input type="file" id="fileInput" name="image" accept="image/*" />
+           <button class="add-btn" id="addnoteBtn">+ Add Notes</button>
+        </div>
+
         <p class="error-message" id="errorMessage"></p>
 
         <p class="empty-state" id="emptyState">--- No notes added yet ---</p>
@@ -26,7 +29,7 @@
         <div class="notes-list" id="noteList"></div>
     </div>
 </div>
-    
+
     <script type="module" src="../js/notes.js"></script>
 </body>
 </html>

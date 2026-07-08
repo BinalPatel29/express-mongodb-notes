@@ -2,11 +2,12 @@ import { apiFetch } from './api.js';
 
 const addBtn = document.getElementById('addnoteBtn');
 const noteInput = document.getElementById('noteInput');
+const fileInput = document.getElementById('fileInput'); 
 const notesList = document.getElementById('noteList');
 const logoutBtn = document.getElementById('logoutBtn');
 const emptyStateList = document.getElementById('emptyState');
 const errorEl = document.getElementById('errorMessage');
-    
+
 function showError(message){
     if(message){
         errorEl.textContent = message;
@@ -29,6 +30,7 @@ function checkTokenExpiry(error) {
 
 function setFormEnabled(enabled) {
     noteInput.disabled = !enabled;
+    fileInput.disabled = !enabled; // Handle file input state
     addBtn.disabled = !enabled;
 }
 
@@ -74,6 +76,15 @@ async function displayNotes(notesArray){
         textEl.className = 'note-text';
         textEl.textContent = note.text; 
 
+        if (note.imageUrl) {
+            const imgEl = document.createElement('img');
+            imgEl.className = 'note-img';
+            imgEl.src = note.imageUrl;
+            imgEl.alt = "Uploaded image attachment";
+            imgEl.style.maxWidth = "200px"; 
+            noteItem.appendChild(imgEl);
+        }
+
         const dateEl = document.createElement('span');
         dateEl.className = 'note-date';
         const parsedDate = note.createdAt ? new Date(note.createdAt) : new Date();
@@ -90,7 +101,7 @@ async function displayNotes(notesArray){
 
         noteItem.appendChild(textEl);
         noteItem.appendChild(dateEl);
-        noteItem.appendChild(deleteEl);
+        deleteEl && noteItem.appendChild(deleteEl);
         notesList.appendChild(noteItem);
     });
 }
@@ -106,13 +117,34 @@ async function handleAddNote() {
     }
     setFormEnabled(false);
 
-    try{
+    try {
+        let uploadedImageUrl = "";
+
+        if (fileInput.files && fileInput.files[0]) {
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+
+            const uploadResponse = await apiFetch('/api/upload', {
+                method: 'POST',
+                body: formData 
+            });
+
+            uploadedImageUrl = uploadResponse.imageUrl;
+            
+            localStorage.setItem('lastUploadedImageURL', uploadedImageUrl);
+        }
+
         await apiFetch('/api/notes', {
             method : "POST",
             headers: { "Content-Type": "application/json" },
-            body : JSON.stringify({ text : noteText }) 
+            body : JSON.stringify({ 
+                text : noteText,
+                imageUrl: uploadedImageUrl 
+            }) 
         });
-        noteInput.value ="";
+
+        noteInput.value = "";
+        fileInput.value = ""; 
         await fetchAndLoadNotes();
     }
     catch(error){
@@ -127,7 +159,7 @@ async function handleAddNote() {
 } 
 
 function handleLogout(){
-    localStorage.removeItem('token');
+    localStorage.clear(); 
     window.location.href = '/frontend/index.html';
 }
 

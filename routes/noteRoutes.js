@@ -2,7 +2,7 @@ import express, { Router } from 'express';
 import Note from '../models/noteModel.js';
 import { validateNote } from '../validators/noteValidator.js';
 import logger from '../src/utils/logger.js';
-import { Types } from 'mongoose';
+import upload from '../js/utils/upload.js'; 
 
 const router = Router();
 
@@ -31,122 +31,69 @@ async function invalidateUserCache(userId) {
 }
 
 router.get('/', asyncHandler(async (req, res, next) => {
-    try{
-    let { page = 1, limit = 10, sort = '-createdAt', text } = req.query;
+    try {
+        let { page = 1, limit = 10, sort = '-createdAt', text } = req.query;
 
-    page = Math.max(1, parseInt(page, 10) || 1);
-    limit = Math.max(1, parseInt(limit, 10) || 10);
-    
-    const cachekeys = `notes:${req.userId}:p_${page}:l_${limit}:s_${sort}:t_${text || 'none'}`;
-    console.log('cachekeys: ', cachekeys);
-
-    if (global.redisClient) {
-        const cachedData = await global.redisClient.get(cachekeys);
-        console.log('cachedData: ', cachedData);
-        if (cachedData && cachedData.data?.length > 0) {
-            logger.info({ userId: req.userId, cachekeys }, "Redis Cache HIT: Instantly returning data from system RAM memory");
-            return res.json(JSON.parse(cachedData));
-        }
-        logger.info({ userId: req.userId, cachekeys }, "Redis Cache MISS: Fetching live workspace records from MongoDB database");
-    }
-    let user_id = new Types.ObjectId(req.userId)
-    console.log('user_id: ', user_id);
-    const filter = {
-        userId: user_id,
-        ...(text && { text: { $regex: text, $options: 'i' } })
-    };
-
-    const allowedSort = ['createdAt', 'updatedAt', 'text', '-createdAt', '-updatedAt', '-text'];
-    const finalSort = allowedSort.includes(sort) ? sort : '-createdAt';
-
-    console.log('filter: ', filter);
-    const [notes, totalItems] = await Promise.all([
-        Note.find(filter).sort(finalSort).skip((page - 1) * limit).limit(limit).lean(),
-        Note.countDocuments(filter)
-    ]);
-
-    const responsePayload = {
-        success: true,
-        data: notes,
-        pagination: {
-            totalItems,
-            totalPages: Math.ceil(totalItems / limit),
-            currentPage: page
-        }
-    };
-
-    if (global.redisClient) {
-        await global.redisClient.setEx(cachekeys, CACHE_TTL_SECONDS, JSON.stringify(responsePayload));
-    }
-    res.json(responsePayload);
-}
-catch(error){
-    next(error);
-}
-}));
-
-router.get('/', asyncHandler(async (req, res, next) => {
-  try {
-    let { page = 1, limit = 10, sort = '-createdAt', text } = req.query;
-
-    page = Math.max(1, parseInt(page, 10) || 1);
-    limit = Math.max(1, parseInt(limit, 10) || 10);
-
-    const cachekeys = `notes:${req.userId}:p_${page}:l_${limit}:s_${sort}:t_${text || 'none'}`;
-    
-    if (global.redisClient) {
-      const cachedRaw = await global.redisClient.get(cachekeys);
-      
-      if (cachedRaw) {
-        const cachedPayload = JSON.parse(cachedRaw);
+        page = Math.max(1, parseInt(page, 10) || 1);
+        limit = Math.max(1, parseInt(limit, 10) || 10);
         
-        if (cachedPayload?.data?.length > 0) {
-          logger.info({ userId: req.userId, cachekeys }, "Redis Cache HIT: Instantly returning data from system RAM memory");
-          return res.json(cachedPayload); 
+        const cachekeys = `notes:${req.userId}:p_${page}:l_${limit}:s_${sort}:t_${text || 'none'}`;
+
+        if (global.redisClient) {
+            const cachedData = await global.redisClient.get(cachekeys);
+            if (cachedData) {
+                const parsedPayload = JSON.parse(cachedData);
+                if (parsedPayload?.data?.length > 0) {
+                    logger.info({ userId: req.userId, cachekeys }, "Redis Cache HIT: Instantly returning data from system RAM memory");
+                    return res.json(parsedPayload);
+                }
+            }
+            logger.info({ userId: req.userId, cachekeys }, "Redis Cache MISS: Fetching live workspace records from MongoDB database");
         }
-      }
-      logger.info({ userId: req.userId, cachekeys }, "Redis Cache MISS: Fetching live workspace records from MongoDB database");
+        
+        let user_id = new Types.ObjectId(req.userId);
+        const filter = {
+            userId: user_id,
+            ...(text && { text: { $regex: text, $options: 'i' } })
+        };
+
+        const allowedSort = ['createdAt', 'updatedAt', 'text', '-createdAt', '-updatedAt', '-text'];
+        const finalSort = allowedSort.includes(sort) ? sort : '-createdAt';
+
+        const [notes, totalItems] = await Promise.all([
+            Note.find(filter).sort(finalSort).skip((page - 1) * limit).limit(limit).lean(),
+            Note.countDocuments(filter)
+        ]);
+
+        const responsePayload = {
+            success: true,
+            data: notes,
+            pagination: {
+                totalItems,
+                totalPages: Math.ceil(totalItems / limit),
+                currentPage: page
+            }
+        };
+
+        if (global.redisClient) {
+            await global.redisClient.setEx(cachekeys, CACHE_TTL_SECONDS, JSON.stringify(responsePayload));
+        }
+        res.json(responsePayload);
+    } catch(error) {
+        next(error);
     }
-
-    const user_id = new Types.ObjectId(req.userId);
-    const filter = { 
-      userId: user_id, 
-      ...(text && { text: { $regex: text, $options: 'i' } }) 
-    };
-
-    const allowedSort = ['createdAt', 'updatedAt', 'text', '-createdAt', '-updatedAt', '-text'];
-    const finalSort = allowedSort.includes(sort) ? sort : '-createdAt';
-
-    const [notes, totalItems] = await Promise.all([
-      Note.find(filter)
-        .sort(finalSort)
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean(),
-      Note.countDocuments(filter)
-    ]);
-
-    const responsePayload = {
-      success: true,
-      data: notes,
-      pagination: {
-        totalItems,
-        totalPages: Math.ceil(totalItems / limit),
-        currentPage: page
-      }
-    };
-
-    if (global.redisClient) {
-      const ttl = typeof CACHE_TTL_SECONDS !== 'undefined' ? CACHE_TTL_SECONDS : 300;
-      await global.redisClient.setEx(cachekeys, ttl, JSON.stringify(responsePayload));
-    }
-
-    return res.json(responsePayload);
-
-  } catch (error) {
-    return next(error);
-  }
 }));
+
+router.post('/upload', upload.single('image'), (req, res) => {
+    if (!req.file) {
+       return res.status(400).json({ message : 'No file uploaded' });
+    }
+    const imageUrl = `http://localhost:3000/uploads/${req.file.filename}`;
+    res.status(200).json({
+        message: "image uploaded successfully",
+        imageUrl: imageUrl
+    });
+});
 
 router.post('/', asyncHandler(async (req, res, next) => {
     const logContext = { path: '/notes', method: 'POST', userId: req.userId };
@@ -165,7 +112,11 @@ router.post('/', asyncHandler(async (req, res, next) => {
         throw validationError;
     }
     
-    const note = new Note({ text: req.body.text, userId: req.userId });
+    const note = new Note({ 
+        text: req.body.text, 
+        userId: req.userId,
+        imageUrl: req.body.imageUrl || "" 
+    });
     await note.save();
 
     await invalidateUserCache(req.userId);
