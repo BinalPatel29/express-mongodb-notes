@@ -21,7 +21,7 @@ const noteRouter = (await import('../routes/noteRoutes.js')).default;
 const { protect } = await import('../middleware/auth.js');
 const errorHandler = (await import('../middleware/errorHandler.js')).default;
 const logger = (await import('../src/utils/logger.js')).default;
-
+const upload = (await import('../src/utils/upload.js')).default;
 
 beforeAll(() => {
   logger.level = 'silent'; 
@@ -55,6 +55,7 @@ beforeAll(async () => {
   app.use(express.json());
   app.use(cookieParser());
 
+  app.use('/uploads', express.static('uploads'));
   app.use('/api/auth', authRouter); 
   app.use('/api/notes', protect, noteRouter); 
   app.use(errorHandler); 
@@ -129,6 +130,18 @@ describe('CRUD COMPLIANCE VERIFICATION (NOTES)', () => {
     expect(res.statusCode).toBe(201); 
     expect(res.body).toHaveProperty('_id'); 
     testNoteId = res.body._id; 
+  });
+
+  it('should allow users to save an uploaded image file successfully', async () => {
+    const dummyBuffer = Buffer.from('fake-image-binary-data');
+    const res = await request(app)
+      .post('/api/notes/upload')
+      .set('Authorization', `Bearer ${validToken}`) 
+      .attach('image', dummyBuffer, 'test-image.png');
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toHaveProperty('imageUrl'); 
+    expect(res.body.imageUrl).toContain('http://localhost:3000/uploads/');
   });
 
   it('should compile and return a data listing array owned by the account', async () => {

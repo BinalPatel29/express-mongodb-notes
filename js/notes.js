@@ -12,8 +12,7 @@ function showError(message){
     if(message){
         errorEl.textContent = message;
         errorEl.style.display = "block";
-    }
-    else{
+    } else {
         errorEl.textContent = "";
         errorEl.style.display = "none";
     }
@@ -28,15 +27,15 @@ function checkTokenExpiry(error) {
     return false;
 }
 
+// Disable fields while loading
 function setFormEnabled(enabled) {
     noteInput.disabled = !enabled;
-    fileInput.disabled = !enabled; // Handle file input state
+    fileInput.disabled = !enabled;
     addBtn.disabled = !enabled;
 }
 
 document.addEventListener('DOMContentLoaded', async() => {
     const token = localStorage.getItem('token');
-
     if(!token){
         window.location.href= '/frontend/index.html';
         return;
@@ -47,13 +46,12 @@ document.addEventListener('DOMContentLoaded', async() => {
 });
 
 async function fetchAndLoadNotes() {
-    try{
-        const notes = await apiFetch('/api/notes', {
-            method: "GET"
-        });
-        displayNotes(notes); 
-    }
-    catch(error){
+    try {
+        const response = await apiFetch('/api/notes', { method: "GET" });
+        // Handle pagination object if server returns wrapped response structure
+        const arrayData = response.data ? response.data : response;
+        displayNotes(arrayData); 
+    } catch(error) {
         if (!checkTokenExpiry(error)) {
             showError('Failed to load notes. Please try again.');
         }
@@ -63,10 +61,10 @@ async function fetchAndLoadNotes() {
 async function displayNotes(notesArray){
     notesList.innerHTML="";
     if(!notesArray || notesArray.length === 0){
-        emptyStateList.style.display= "block";
+        emptyStateList.style.display = "block";
         return;
     }
-    emptyStateList.style.display= "none";
+    emptyStateList.style.display = "none";
 
     notesArray.forEach(note => {
         const noteItem = document.createElement('div');
@@ -75,33 +73,28 @@ async function displayNotes(notesArray){
         const textEl = document.createElement('p');
         textEl.className = 'note-text';
         textEl.textContent = note.text; 
+        noteItem.appendChild(textEl);
 
         if (note.imageUrl) {
             const imgEl = document.createElement('img');
             imgEl.className = 'note-img';
             imgEl.src = note.imageUrl;
-            imgEl.alt = "Uploaded image attachment";
-            imgEl.style.maxWidth = "200px"; 
+            imgEl.alt = "Attached visual note element";
             noteItem.appendChild(imgEl);
         }
 
         const dateEl = document.createElement('span');
         dateEl.className = 'note-date';
         const parsedDate = note.createdAt ? new Date(note.createdAt) : new Date();
-        const isValidDate = parsedDate instanceof Date && !isNaN(parsedDate)
-        dateEl.textContent = isValidDate ? parsedDate.toLocaleString() : new Date().toLocaleString();
+        dateEl.textContent = parsedDate.toLocaleString();
+        noteItem.appendChild(dateEl);
 
         const deleteEl = document.createElement('p');
         deleteEl.className = 'note-del';
         deleteEl.textContent = "DELETE";
+        deleteEl.addEventListener('click', () => handleDeleteNote(note._id || note.id));
+        noteItem.appendChild(deleteEl);
 
-        deleteEl.addEventListener('click', () => {
-            handleDeleteNote(note._id || note.id); 
-        });
-
-        noteItem.appendChild(textEl);
-        noteItem.appendChild(dateEl);
-        deleteEl && noteItem.appendChild(deleteEl);
         notesList.appendChild(noteItem);
     });
 }
@@ -124,14 +117,13 @@ async function handleAddNote() {
             const formData = new FormData();
             formData.append('image', fileInput.files[0]);
 
-            const uploadResponse = await apiFetch('/api/upload', {
+            // Notice the combined path match: /api/notes/upload
+            const uploadResponse = await apiFetch('/api/notes/upload', {
                 method: 'POST',
                 body: formData 
             });
-
             uploadedImageUrl = uploadResponse.imageUrl;
-            
-            localStorage.setItem('lastUploadedImageURL', uploadedImageUrl);
+            localStorage.setItem('userImageURL', uploadedImageUrl);
         }
 
         await apiFetch('/api/notes', {
@@ -146,32 +138,27 @@ async function handleAddNote() {
         noteInput.value = "";
         fileInput.value = ""; 
         await fetchAndLoadNotes();
-    }
-    catch(error){
+    } catch(error) {
         if (!checkTokenExpiry(error)) {
             showError(error.message || "Failed to save the note.");
         }
-    }
-    finally{
+    } finally {
         setFormEnabled(true);
         noteInput.focus();
     }
 } 
 
 function handleLogout(){
-    localStorage.clear(); 
+    localStorage.clear();
     window.location.href = '/frontend/index.html';
 }
 
 async function handleDeleteNote(noteId){
     if(!noteId) return;
-    try{
-        await apiFetch(`/api/notes/${noteId}` ,{
-            method: "DELETE"
-        });
+    try {
+        await apiFetch(`/api/notes/${noteId}` ,{ method: "DELETE" });
         await fetchAndLoadNotes();
-    }
-    catch(error){
+    } catch(error) {
         if (!checkTokenExpiry(error)) {
             showError('Failed to delete note.'); 
         }
