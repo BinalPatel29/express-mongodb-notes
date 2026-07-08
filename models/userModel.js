@@ -1,22 +1,26 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcrypt';        // securely hashing and storing user passwords
+import bcrypt from 'bcrypt';        
 
 const userSchema = new mongoose.Schema({
   firstName: { type: String, required: true },
   lastName: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true, index: true }, // Added index optimization
   password: { type: String, required: true },
-  mobileNo: { type: String }
+  mobileNo: { type: String },
+  refreshTokens: { type: [String], default: [] } 
 });
 
-userSchema.pre('save', async function () {     // pre-save middleware hook that automatically runs a custom asynchronous function on a document right before it is saved to MongoDB
-  if (!this.isModified('password')) return;
+userSchema.pre('save', async function (next) {     
+  if (!this.isModified('password')) {
+    return next(); // Explicitly continue if password hasn't changed
+  }
 
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
+    next(); // Explicitly continue after successful hashing
   } catch (error) {
-    throw error; // Throwing error passes it directly to Mongoose downstream
+    next(error); // Passes the error safely down to Mongoose error handling
   }
 });
 
