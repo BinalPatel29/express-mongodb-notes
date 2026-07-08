@@ -11,6 +11,7 @@ import errorHandler from './middleware/errorHandler.js';
 import helmet from 'helmet';         
 import { rateLimit } from 'express-rate-limit';        
 import { createClient } from 'redis';
+import cookieParser from 'cookie-parser';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -68,6 +69,7 @@ const authLimiter = rateLimit({
 });
 
 app.use(express.json());
+app.use(cookieParser());
 
 // MALFORMED JSON MIDDLEWARE
 app.use((err, req, res, next) => {

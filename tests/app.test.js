@@ -1,8 +1,7 @@
 import { jest } from '@jest/globals';
 
-//  mock is a fake version of a real component
 jest.unstable_mockModule('../validators/authValidator.js', () => ({
-  validateRegister: () => ({ error: null }),    // Validation passed perfectly, there are zero errors
+  validateRegister: () => ({ error: null }),    
   validateLogin: () => ({ error: null })
 }));
 
@@ -16,18 +15,21 @@ const { MongoMemoryServer } = await import('mongodb-memory-server');
 const express = (await import('express')).default;
 const helmet = (await import('helmet')).default;
 const cors = (await import('cors')).default;
+const cookieParser = (await import('cookie-parser')).default;
 const authRouter = (await import('../routes/authRoutes.js')).default;
 const noteRouter = (await import('../routes/noteRoutes.js')).default;
 const { protect } = await import('../middleware/auth.js');
 const errorHandler = (await import('../middleware/errorHandler.js')).default;
 const logger = (await import('../src/utils/logger.js')).default;
 
+
 beforeAll(() => {
   logger.level = 'silent'; 
   process.env.JWT_SECRET = 'test-environment-jwt-secret-key-12345'; 
+  process.env.REFRESH_TOKEN_SECRET = 'test-environment-refresh-secret-key-67890';
 });
 
-// Global variables
+// Global test suite states
 let mongoServer;
 let app;
 const testUser = {
@@ -40,17 +42,18 @@ const testUser = {
 let validToken = '';
 let testNoteId = '';
 
-// Setup the in-memory database and express application before any tests run
+// Setup target environment memory instances
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create(); 
-  const mongoUri = mongoServer.getUri(); 
-  await mongoose.connect(mongoUri); 
+    mongoServer = await MongoMemoryServer.create(); 
+    const mongoUri = mongoServer.getUri(); 
+    await mongoose.connect(mongoUri); 
 
   app = express(); 
   
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   app.use(cors());
   app.use(express.json());
+  app.use(cookieParser());
 
   app.use('/api/auth', authRouter); 
   app.use('/api/notes', protect, noteRouter); 
@@ -58,7 +61,9 @@ beforeAll(async () => {
 }, 60000); 
 
 afterAll(async () => {
-  await mongoose.disconnect(); 
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.disconnect(); 
+  }
   if (mongoServer) {
     await mongoServer.stop(); 
   }
