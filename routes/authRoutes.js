@@ -4,8 +4,11 @@ import jwt from 'jsonwebtoken';
 import { validateRegister, validateLogin } from '../validators/authValidator.js';
 import logger from '../src/utils/logger.js';
 
-const router = express.Router();
+export const asyncHandler = (fn) => (req, res, next) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+};
 
+const router = express.Router();
 const setRefreshTokenCookies = (res, token) => {
     res.cookie('refresh_token', token, {
         httpOnly: true,
@@ -16,7 +19,7 @@ const setRefreshTokenCookies = (res, token) => {
     });
 };
 
-router.post('/register', async (req, res, next) => {
+router.post('/register',asyncHandler( async (req, res, next) => {
     const logContext = { path: '/register', method: 'POST' };
     const { error } = validateRegister(req.body);
 
@@ -44,9 +47,9 @@ router.post('/register', async (req, res, next) => {
             
     logger.info({ ...logContext, userId: user._id }, "User registered successfully");
     res.status(201).json({ message: 'User registered successfully' });
-});
+}));
 
-router.post('/login', async (req, res, next) => {
+router.post('/login', asyncHandler(async (req, res, next) => {
     const logContext = { path: '/login', method: 'POST', credentials: 'include' };
     const { error } = validateLogin(req.body);
             
@@ -104,9 +107,9 @@ router.post('/login', async (req, res, next) => {
             
     logger.info({ ...logContext, userId: user._id }, "User successfully authenticated");
     res.json({ token });
-});
+}));
 
-router.post('/refresh', async (req, res, next) => {
+router.post('/refresh',asyncHandler( async (req, res, next) => {
     const logContext = { path: '/refresh', method: 'POST' };
     const cookies = req.cookies;
     if (!cookies?.refresh_token) return res.status(401).json({ message: 'unauthorized' });
@@ -144,9 +147,9 @@ router.post('/refresh', async (req, res, next) => {
         setRefreshTokenCookies(res, newRefreshToken);
         res.json({ token: newAccessToken });
     });
-});
+}));
 
-router.post('/logout-all', async (req, res, next) => {
+router.post('/logout-all', asyncHandler(async (req, res, next) => {
     const cookies = req.cookies;
     if (!cookies?.refresh_token) return res.sendStatus(204);
 
@@ -159,6 +162,6 @@ router.post('/logout-all', async (req, res, next) => {
     }
     res.clearCookie('refresh_token', { httpOnly: true, secure: true, sameSite: 'strict', path: '/' });
     res.json({ message: 'successfully logout from everywhere' });
-});
+}));
 
 export default router;
