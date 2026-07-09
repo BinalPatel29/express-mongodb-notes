@@ -90,7 +90,7 @@ router.post('/upload', upload.single('image'), (req, res) => {
 
 router.post('/', asyncHandler(async (req, res, next) => {
     const logContext = { path: '/notes', method: 'POST', userId: req.userId };
-    const payload = { text: req.body.text, userId: req.userId };
+    const payload = { text: req.body.text, userId: req.userId, imageUrl: req.body.imageUrl };
     const { error } = validateNote(payload);
        
     if (error) {
@@ -109,6 +109,34 @@ router.post('/', asyncHandler(async (req, res, next) => {
 
     await invalidateUserCache(req.userId);
     res.status(201).json(note);
+}));
+
+router.patch('/:id', asyncHandler(async (req, res, next) => {
+    const logContext = { path: `/notes/${req.params.id}`, method: 'PATCH', userId: req.userId };
+    const payload = { text: req.body.text, userId: req.userId };
+    const { error } = validateNote(payload);
+
+    if (error) {
+        const errorMsg = error.details?.[0]?.message || error.message;
+        const validationError = new Error(errorMsg);
+        validationError.statusCode = 400;
+        throw validationError;
+    }
+
+    const note = await Note.findOneAndUpdate(
+        { _id: req.params.id, userId: req.userId }, 
+        { text: req.body.text }, 
+        { new: true }
+    );
+
+    if (!note) {
+        const notFoundError = new Error('Note not found');
+        notFoundError.statusCode = 404;
+        throw notFoundError;
+    } 
+
+    await invalidateUserCache(req.userId);
+    res.json({ message: 'Note updated successfully', note });
 }));
 
 router.delete('/:id', asyncHandler(async (req, res, next) => {

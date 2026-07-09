@@ -3,9 +3,8 @@ import joiObjectId from 'joi-objectid';
 
 joi.objectId = joiObjectId(joi);
 
-export function validateNote(note) {
-    const notesSchema = joi.object ({
-
+export const validateNote = (note) => {
+    const notesSchema = joi.object({
         text: joi.string()
                  .min(2)
                  .required()
@@ -14,8 +13,13 @@ export function validateNote(note) {
         userId: joi.objectId()
                    .required(),
 
-        createdAt:  joi.date()
-                      .iso()
+        createdAt: joi.date()
+                      .iso(),
+
+        imageUrl: joi.string()
+                     .allow('')
+                     .optional()
     });
+    
     return notesSchema.validate(note);
-}
+};

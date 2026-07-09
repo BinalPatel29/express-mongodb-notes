@@ -7,18 +7,15 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   mobileNo: { type: String },
-  refreshTokens: {type: [String] , default: []}
+  refreshTokens: {type: [String] , default: []},
+  uploadDir : {type: String, default: ""}
 });
 
-userSchema.pre('save', async function () {     // pre-save middleware hook that automatically runs a custom asynchronous function on a document right before it is saved to MongoDB
+userSchema.pre('save', async function () {
   if (!this.isModified('password')) return;
 
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-  } catch (error) {
-    throw error; // Throwing error passes it directly to Mongoose downstream
-  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
