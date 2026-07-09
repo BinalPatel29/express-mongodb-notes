@@ -42,16 +42,6 @@ router.get('/', asyncHandler(async (req, res, next) => {
         limit = Math.max(1, parseInt(limit, 10) || 10);
         
         const cachekeys = `notes:${req.userId}:p_${page}:l_${limit}:s_${sort}:t_${text || 'none'}`;
-
-        if (global.redisClient) {
-            const cachedData = await global.redisClient.get(cachekeys);
-            if (cachedData) {
-                const parsedPayload = JSON.parse(cachedData);
-                if (parsedPayload?.data?.length > 0) {
-                    return res.json(parsedPayload);
-                }
-            }
-        }
         
         let user_id = new Types.ObjectId(req.userId);
         const filter = {
@@ -62,6 +52,7 @@ router.get('/', asyncHandler(async (req, res, next) => {
         const allowedSort = ['createdAt', 'updatedAt', 'text', '-createdAt', '-updatedAt', '-text'];
         const finalSort = allowedSort.includes(sort) ? sort : '-createdAt';
 
+        console.log('filter: ', filter);
         const [notes, totalItems] = await Promise.all([
             Note.find(filter).sort(finalSort).skip((page - 1) * limit).limit(limit).lean(),
             Note.countDocuments(filter)
