@@ -44,6 +44,11 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+app.use('/frontend', express.static('frontend'));
+app.use('/js', express.static('js'));
+app.use('/css', express.static('css'));
+app.use('/uploads', express.static('uploads')); 
+
 // GLOBAL RATE LIMITER 
 const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -122,11 +127,6 @@ async function startDatabases() {
 }
 
 startDatabases();
-
-// STATIC ASSETS
-app.use('/frontend', express.static('frontend'));
-app.use('/js', express.static('js'));
-app.use('/css', express.static('css'));
 
 // ROUTES
 app.get('/api/new', (req, res) => {
