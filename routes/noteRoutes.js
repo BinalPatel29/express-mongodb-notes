@@ -179,14 +179,17 @@ router.patch('/:id', asyncHandler(async (req, res, next) => {
 
 router.delete('/:id', asyncHandler(async (req, res, next) => {
     const note = await Note.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+    
     if (!note) {
         const error = new Error('Note not found');
-        error.statusCode = 404;
+        error.name = 'OperationalError'; 
+        error.statusCode = 404; 
         throw error;
     }
     
     await invalidateUserCache(req.userId, req.params.id);
     res.json({ message: 'Note deleted successfully' });
 }));
+
 
 export default router;
