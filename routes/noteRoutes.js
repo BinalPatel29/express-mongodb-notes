@@ -12,7 +12,7 @@ const asyncHandler = (fn) => (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
 };
 
-async function invalidateUserCache(userId) {
+async function invalidateUserCache(userId, specificNoteId = null) {
     if (global.redisClient) {
         const matchPattern = `notes:${userId}:*`;
         const keysToDelete = [];
@@ -25,8 +25,13 @@ async function invalidateUserCache(userId) {
 
         if (keysToDelete.length > 0) {
             await global.redisClient.del(...keysToDelete);
-            logger.info({ userId, keysCount: keysToDelete.length }, "Redis Cache Invalidated");
         }
+
+        if (specificNoteId) {
+            await global.redisClient.del(`note:${userId}:${specificNoteId}`);
+        }
+        
+        logger.info({ userId, specificNoteId, listingCleared: keysToDelete.length }, "Redis Cache Invalidation Completed");
     }
 }
 
@@ -73,6 +78,39 @@ router.get('/', asyncHandler(async (req, res, next) => {
         }
         res.json(responsePayload);
     } catch(error) {
+        next(error);
+    }
+}));
+
+router.get('/:id', asyncHandler(async (req, res, next) => {
+    try {
+        const noteId = req.params.id;
+        const cacheKey = `note:${req.userId}:${noteId}`;
+
+        if (global.redisClient) {
+            const cachedNote = await global.redisClient.get(cacheKey);
+            if (cachedNote) {
+                logger.info({ userId: req.userId, noteId }, "Redis Single Cache HIT: Instantly returning single note record");
+                return res.json(JSON.parse(cachedNote));
+            }
+        }
+
+        const note = await Note.findOne({ _id: noteId, userId: req.userId }).lean();
+
+        if (!note) {
+            const notFoundError = new Error('Note not found');
+            notFoundError.statusCode = 404;
+            throw notFoundError;
+        }
+
+        if (global.redisClient) {
+            await global.redisClient.setEx(cacheKey, CACHE_TTL_SECONDS, JSON.stringify(note));
+        }
+
+        logger.info({ userId: req.userId, noteId }, "Redis Single Cache MISS: Record successfully fetched from MongoDB");
+        return res.json(note);
+
+    } catch (error) {
         next(error);
     }
 }));
@@ -135,7 +173,7 @@ router.patch('/:id', asyncHandler(async (req, res, next) => {
         throw notFoundError;
     } 
 
-    await invalidateUserCache(req.userId);
+    await invalidateUserCache(req.userId, req.params.id);
     res.json({ message: 'Note updated successfully', note });
 }));
 
@@ -146,7 +184,8 @@ router.delete('/:id', asyncHandler(async (req, res, next) => {
         error.statusCode = 404;
         throw error;
     }
-    await invalidateUserCache(req.userId);
+    
+    await invalidateUserCache(req.userId, req.params.id);
     res.json({ message: 'Note deleted successfully' });
 }));
 
