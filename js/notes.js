@@ -8,6 +8,24 @@ const logoutBtn = document.getElementById('logoutBtn');
 const emptyStateList = document.getElementById('emptyState');
 const errorEl = document.getElementById('errorMessage');
 
+const socket = io("http://localhost:3000", { 
+    withCredentials: true,
+    transports: ['websocket'] 
+});
+const toastBanner = document.getElementById('notification-toast');
+const toastMessage = document.getElementById('notification-message');
+
+socket.on('liveNotification', (data) => {
+    if (toastBanner && toastMessage && data && data.text) {
+        toastMessage.textContent = data.text;
+        toastBanner.style.display = "flex";
+
+        setTimeout(() => {
+            toastBanner.style.display = "none";
+        }, 5000);
+    }
+});
+
 function showError(message){
     if(message){
         errorEl.textContent = message;
@@ -21,7 +39,7 @@ function showError(message){
 function checkTokenExpiry(error) {
     if (error && error.message === 'Invalid or expired token') {
         localStorage.clear();
-        window.location.href = '/frontend/index.html';
+        window.location.href = './index.html'; 
         return true;
     }
     return false;
@@ -29,14 +47,16 @@ function checkTokenExpiry(error) {
 
 function setFormEnabled(enabled) {
     noteInput.disabled = !enabled;
-    fileInput.disabled = !enabled;
+    if (fileInput) fileInput.disabled = !enabled; 
     addBtn.disabled = !enabled;
 }
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 document.addEventListener('DOMContentLoaded', async() => {
     const token = localStorage.getItem('token');
     if(!token){
-        window.location.href= '/frontend/index.html';
+        window.location.href = './index.html';
         return;
     }
     logoutBtn.addEventListener("click", handleLogout);
@@ -46,9 +66,18 @@ document.addEventListener('DOMContentLoaded', async() => {
 
 async function fetchAndLoadNotes() {
     try {
-        const response = await apiFetch('/api/notes', { method: "GET" });
-        const arrayData = response.data ? response.data : response;
-        displayNotes(arrayData); 
+        const response = await apiFetch('api/notes', { method: "GET" });
+        let notesArray = [];
+        
+        if (response && response.success === true && Array.isArray(response.data)) {
+            notesArray = response.data;
+        } else if (response && Array.isArray(response.data)) {
+            notesArray = response.data;
+        } else if (Array.isArray(response)) {
+            notesArray = response;
+        }
+
+        displayNotes(notesArray); 
     } catch(error) {
         if (!checkTokenExpiry(error)) {
             showError('Failed to load notes. Please try again.');
@@ -57,7 +86,7 @@ async function fetchAndLoadNotes() {
 }
 
 async function displayNotes(notesArray){
-    notesList.innerHTML="";
+    notesList.innerHTML = "";
     if(!notesArray || notesArray.length === 0){
         emptyStateList.style.display = "block";
         return;
@@ -67,6 +96,11 @@ async function displayNotes(notesArray){
     notesArray.forEach(note => {
         const noteItem = document.createElement('div');
         noteItem.className = 'note-item';
+
+        const currentId = note._id; 
+        if (currentId) {
+            noteItem.setAttribute('data-id', currentId);
+        }
 
         const textEl = document.createElement('p');
         textEl.className = 'note-text';
@@ -90,9 +124,10 @@ async function displayNotes(notesArray){
         const deleteEl = document.createElement('p');
         deleteEl.className = 'note-del';
         deleteEl.textContent = "DELETE";
-        deleteEl.addEventListener('click', () => handleDeleteNote(note._id || note.id));
+        deleteEl.addEventListener('click', () => {
+            if (currentId) handleDeleteNote(currentId);
+        });
         noteItem.appendChild(deleteEl);
-
         notesList.appendChild(noteItem);
     });
 }
@@ -112,19 +147,18 @@ async function handleAddNote() {
     try {
         let uploadedImageUrl = "";
 
-        if (fileInput.files && fileInput.files[0]) {
+        if (fileInput && fileInput.files && fileInput.files[0]) {
             const formData = new FormData();
             formData.append('image', fileInput.files[0]);
 
-            const uploadResponse = await apiFetch('/api/notes/upload', {
+            const uploadResponse = await apiFetch('api/notes/upload', {
                 method: 'POST',
                 body: formData 
             });
             uploadedImageUrl = uploadResponse.imageUrl;
-            localStorage.setItem('userImageURL', uploadedImageUrl);
         }
 
-        await apiFetch('/api/notes', {
+        await apiFetch('api/notes', {
             method : "POST",
             headers: { "Content-Type": "application/json" },
             body : JSON.stringify({ 
@@ -133,8 +167,16 @@ async function handleAddNote() {
             }) 
         });
 
+        if (typeof socket !== 'undefined') {
+            socket.emit('newActivityNotice', { 
+                message: `Someone added a note: "${noteText.substring(0, 20)}..."` 
+            });
+        }
+
         noteInput.value = "";
-        fileInput.value = ""; 
+        if (fileInput) fileInput.value = ""; 
+        
+        await delay(150); 
         await fetchAndLoadNotes();
     } catch(error) {
         if (!checkTokenExpiry(error)) {
@@ -148,13 +190,14 @@ async function handleAddNote() {
 
 function handleLogout(){
     localStorage.clear();
-    window.location.href = '/frontend/index.html';
+    window.location.href = './index.html';
 }
 
 async function handleDeleteNote(noteId){
     if(!noteId) return;
     try {
-        await apiFetch(`/api/notes/${noteId}` ,{ method: "DELETE" });
+        await apiFetch(`api/notes/${noteId}` ,{ method: "DELETE" });
+        await delay(150); 
         await fetchAndLoadNotes();
     } catch(error) {
         if (!checkTokenExpiry(error)) {

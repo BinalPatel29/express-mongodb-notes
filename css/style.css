@@ -277,3 +277,30 @@ a:hover {
   margin-left: 0;
   padding: 4px 8px;
 }
+
+.toast-alert {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background-color: #007bff;
+  color: white;
+  padding: 15px 25px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 9999;
+  font-size: 16px;
+  font-weight: bold;
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+.toast-icon {
+  font-size: 20px;
+}
+
+@keyframes slideInFromRight {
+  from { transform: translateX(120%); }
+  to { transform: translateX(0); }
+}

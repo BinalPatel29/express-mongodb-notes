@@ -5,10 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notes Page</title>
     <link rel="stylesheet" href="../css/style.css">
+    <script src= "http://localhost:3000/socket.io/socket.io.js"></script>
 </head>
 <body>
 <div class="notes-wrapper">
     <h1>📒 NOTES</h1>
+
+    <div id="notification-toast" class="toast-alert" style="display: none;">
+        <span class="toast-icon">🔔</span>
+        <p id="notification-message">Someone added a new item or commented!</p>
+    </div>
     
     <div class="logout">
         <button id="logoutBtn">LOG OUT</button>

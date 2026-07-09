@@ -12,9 +12,39 @@ import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';        
 import { createClient } from 'redis';
 import cookieParser from 'cookie-parser';
+import { Server } from 'socket.io';
+import { createServer } from 'http'; 
 
-const app = express();
+const app = express(); 
 const PORT = process.env.PORT || 3000;
+
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+    cors: {
+        origin: (origin, callback) => {
+            callback(null, true);
+        },
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+        credentials: true
+    }
+});
+
+io.on('connection', (socket) => {
+    logger.info({ socketId: socket.id }, 'A secure Socket.io connection pipeline opened with client device');
+
+    socket.on('newActivityNotice', (data) => {
+        logger.info({ data }, 'Real-time note notification packet received on backend server cluster');
+        
+        socket.broadcast.emit('liveNotification', {
+            text: data.message || "A member of your workspace added a new note card entry!"
+        });
+    });
+
+    socket.on('disconnect', () => {
+        logger.info({ socketId: socket.id }, "Socket.io real-time communication pipeline channel disconnected");
+    });
+});
 
 app.use(express.json());
 app.use(cookieParser());
@@ -44,10 +74,12 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+// STATIC ASSET INTERFACES (Placed above rate limiters to avoid file blocking issues)
 app.use('/frontend', express.static('frontend'));
 app.use('/js', express.static('js'));
 app.use('/css', express.static('css'));
 app.use('/uploads', express.static('uploads')); 
+app.use(express.static('public'));
 
 // GLOBAL RATE LIMITER 
 const globalLimiter = rateLimit({
@@ -151,6 +183,6 @@ app.use((req, res) => {
 // GLOBAL ERROR INTERCEPTOR
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
     logger.info(`Server initialized interface: Process actively listening on web communications interface port bindings: ${PORT}`);
 });
