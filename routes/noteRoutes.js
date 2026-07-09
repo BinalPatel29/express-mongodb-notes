@@ -14,24 +14,26 @@ const asyncHandler = (fn) => (req, res, next) => {
 
 async function invalidateUserCache(userId, specificNoteId = null) {
     if (global.redisClient) {
-        const matchPattern = `notes:${userId}:*`;
-        const keysToDelete = [];
-        
-        for await (const key of global.redisClient.scanIterator({ MATCH: matchPattern, COUNT: 100 })) {
-            if (typeof key === 'string') {
-                keysToDelete.push(key);
+        try {
+            const cleanUserId = String(userId);
+            const matchPattern = `notes:${userId}:*`;
+            const keysToDelete = await global.redisClient.keys(matchPattern); 
+
+            if (keysToDelete.length > 0) {
+                await global.redisClient.del(keysToDelete);
             }
-        }
 
-        if (keysToDelete.length > 0) {
-            await global.redisClient.del(...keysToDelete);
+            if (specificNoteId) {
+                await global.redisClient.del(`note:${cleanUserId}:${specificNoteId}`);
+            }
+            
+            logger.info(
+                { userId: cleanUserId, specificNoteId, listingCleared: keysToDelete.length }, 
+                "Redis Cache Invalidation Completed Successfully"
+            );
+        } catch (scanError) {
+            logger.error({ error: scanError.message, userId }, "Failed to clear Redis cache keys");
         }
-
-        if (specificNoteId) {
-            await global.redisClient.del(`note:${userId}:${specificNoteId}`);
-        }
-        
-        logger.info({ userId, specificNoteId, listingCleared: keysToDelete.length }, "Redis Cache Invalidation Completed");
     }
 }
 
@@ -42,7 +44,7 @@ router.get('/', asyncHandler(async (req, res, next) => {
         limit = Math.max(1, parseInt(limit, 10) || 10);
         
         const cachekeys = `notes:${req.userId}:p_${page}:l_${limit}:s_${sort}:t_${text || 'none'}`;
-        
+
         let user_id = new Types.ObjectId(req.userId);
         const filter = {
             userId: user_id,
@@ -169,7 +171,7 @@ router.patch('/:id', asyncHandler(async (req, res, next) => {
 }));
 
 router.delete('/:id', asyncHandler(async (req, res, next) => {
-    const note = await Note.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+    const note = await Note.findOneAndDelete({ _id: req.params.id, userId: req.userId }).exec();
     
     if (!note) {
         const error = new Error('Note not found');
