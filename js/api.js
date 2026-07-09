@@ -3,12 +3,19 @@ export async function apiFetch(endpoint, options = {}) {
     const token = localStorage.getItem("token");
 
     const headers = {
-        "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers || {})
     };
 
-    const url = endpoint.startsWith("http") ? endpoint : `${baseUrl}${endpoint}`;
+    if (options.body && !(options.body instanceof FormData)) {
+        headers["Content-Type"] = "application/json";
+    }
+
+    let cleanPath = endpoint.startsWith("http") ? endpoint : endpoint.replace(/^\/+/g, "");
+    
+    const url = cleanPath.startsWith("http") 
+        ? cleanPath 
+        : `${baseUrl}/${cleanPath.startsWith("api/") ? cleanPath : `api/${cleanPath}`}`;
 
     try {
         const response = await fetch(url, {
@@ -17,8 +24,8 @@ export async function apiFetch(endpoint, options = {}) {
             headers
         });
 
-        if (response.status === 401 && !endpoint.includes('/login') && !endpoint.includes('/register')) {
-            logger.info("Access token expired, attempting background token refresh.");
+        if (response.status === 401 && !url.includes('/login') && !url.includes('/register')) {
+            console.log("Access token expired, attempting background token refresh.");
             
             const refreshUrl = `${baseUrl}/api/auth/refresh`;
             const refreshResponse = await fetch(refreshUrl, {
@@ -28,14 +35,21 @@ export async function apiFetch(endpoint, options = {}) {
 
             if (refreshResponse.ok) {
                 const refreshData = await refreshResponse.json();
-                localStorage.setItem("token", refreshData.token); // Save new short-lived token
+                localStorage.setItem("token", refreshData.token); 
 
-                headers["Authorization"] = `Bearer ${refreshData.token}`;
+                const retryHeaders = {
+                    ...options.headers,
+                    Authorization: `Bearer ${refreshData.token}`
+                };
+
+                if (options.body && !(options.body instanceof FormData)) {
+                    retryHeaders["Content-Type"] = "application/json";
+                }
 
                 const retryResponse = await fetch(url, {
                     ...options,
                     credentials: 'include',
-                    headers
+                    headers: retryHeaders 
                 });
 
                 if (!retryResponse.ok) {
@@ -45,7 +59,7 @@ export async function apiFetch(endpoint, options = {}) {
 
                 return await parseResponse(retryResponse);
             } else {
-                localStorage.removeItem("token");
+                localStorage.clear();
                 window.location.href = "index.html"; 
                 throw new Error("Session expired. Please log in again.");
             }
