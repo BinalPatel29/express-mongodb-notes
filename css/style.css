@@ -298,6 +298,7 @@ a:hover {
 
 .toast-icon {
   font-size: 20px;
+  margin-top: 22px;
 }
 
 @keyframes slideInFromRight {
