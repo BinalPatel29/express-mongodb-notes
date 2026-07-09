@@ -19,15 +19,24 @@ const errorHandler = (err, req, res, next) => {
     const statusCode = err.statusCode || 500;
     const message = err.message || 'Internal Server Error';
 
-    logger.error(
-       { 
-        path: req.path,        // Which page or route failed
-        method: req.method, 
-        error: message, 
-        stack: err.stack       // The exact code file name and line number where the crash happened
-       }, 
-       'Server encountered unhandled downstream exception crash error'
-    );
+    // FIX: Catch operational client errors (like 404 Not Found) and log them cleanly as warnings
+    if (statusCode >= 400 && statusCode < 500) {
+        logger.warn(
+            { path: req.path, method: req.method, statusCode, error: message }, 
+            'Client request operational mismatch notice'
+        );
+    } else {
+        // True system crashes (500 errors) will still trigger a high-priority level 50 alert with full stacks
+        logger.error(
+           { 
+            path: req.path,        
+            method: req.method, 
+            error: message, 
+            stack: err.stack       
+           }, 
+           'Server encountered unhandled downstream exception crash error'
+        );
+    }
 
     res.status(statusCode).json({
        success: false,
