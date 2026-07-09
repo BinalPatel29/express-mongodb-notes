@@ -19,14 +19,12 @@ const errorHandler = (err, req, res, next) => {
     const statusCode = err.statusCode || 500;
     const message = err.message || 'Internal Server Error';
 
-    // FIX: Catch operational client errors (like 404 Not Found) and log them cleanly as warnings
     if (statusCode >= 400 && statusCode < 500) {
         logger.warn(
             { path: req.path, method: req.method, statusCode, error: message }, 
             'Client request operational mismatch notice'
         );
     } else {
-        // True system crashes (500 errors) will still trigger a high-priority level 50 alert with full stacks
         logger.error(
            { 
             path: req.path,        
