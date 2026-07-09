@@ -6,9 +6,13 @@ joi.objectId = joiObjectId(joi);
 export const validateNote = (note) => {
     const notesSchema = joi.object({
         text: joi.string()
-                 .min(2)
-                 .required()
-                 .trim(),
+                 .min(2) 
+                 .required() 
+                 .trim()
+                 .messages({
+                     'string.empty': 'Note text field cannot be left blank.',
+                     'string.min': 'Note text must be at least 2 characters long.'
+                 }),
 
         userId: joi.objectId()
                    .required(),
