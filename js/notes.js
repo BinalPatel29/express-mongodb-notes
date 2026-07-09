@@ -101,7 +101,6 @@ async function handleAddNote() {
     showError("");
     const noteText = noteInput.value.trim();
 
-    // Early Guard Rail: Enforce mandatory text required rule before uploading anything
     if (!noteText || noteText.length < 2) {
         showError("Please enter text content for your note (minimum 2 characters).");
         noteInput.focus();
@@ -113,7 +112,6 @@ async function handleAddNote() {
     try {
         let uploadedImageUrl = "";
 
-        // The image upload only runs if text validation passes successfully
         if (fileInput.files && fileInput.files[0]) {
             const formData = new FormData();
             formData.append('image', fileInput.files[0]);
