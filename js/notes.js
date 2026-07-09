@@ -10,8 +10,14 @@ const errorEl = document.getElementById('errorMessage');
 
 const socket = io("http://localhost:3000", { 
     withCredentials: true,
-    transports: ['websocket'] 
+    transports: ['websocket'],
+    reconnection: true,             
+    reconnectionAttempts: Infinity, 
+    reconnectionDelay: 1000,        
+    reconnectionDelayMax: 5000,     
+    timeout: 20000                  
 });
+
 const toastBanner = document.getElementById('notification-toast');
 const toastMessage = document.getElementById('notification-message');
 
@@ -19,18 +25,47 @@ socket.on('liveNotification', (data) => {
     if (toastBanner && toastMessage && data && data.text) {
         toastMessage.textContent = data.text;
         toastBanner.style.display = "flex";
+        toastBanner.style.backgroundColor = "#28a745"; 
 
-        setTimeout(() => {
+        if (window.toastTimer) clearTimeout(window.toastTimer);
+        window.toastTimer = setTimeout(() => {
             toastBanner.style.display = "none";
         }, 5000);
     }
 });
 
+socket.io.on("reconnect_attempt", (attempt) => {
+    console.warn(`[Socket.io] Connection dropped. Attempting graceful reconnect #${attempt}...`);
+    if (toastBanner && toastMessage) {
+        toastMessage.textContent = "Network unstable. Reconnecting to sync server...";
+        toastBanner.style.display = "flex";
+        toastBanner.style.backgroundColor = "#ffc107"; 
+    }
+});
+
+socket.io.on("reconnect", (attempt) => {
+    console.log(`[Socket.io] Reconnected successfully after ${attempt} attempts.`);
+    if (toastBanner && toastMessage) {
+        toastMessage.textContent = "⚡ Connection restored! Workspaces synchronized.";
+        toastBanner.style.backgroundColor = "#007bff"; // Connection Blue
+        
+        setTimeout(() => {
+            toastBanner.style.display = "none";
+            if (typeof fetchAndLoadNotes === 'function') fetchAndLoadNotes();
+        }, 3000);
+    }
+});
+
+socket.io.on("reconnect_error", (error) => {
+    console.error("[Socket.io] Reconnection pass failed: ", error.message);
+});
+    
 function showError(message){
     if(message){
         errorEl.textContent = message;
         errorEl.style.display = "block";
-    } else {
+    }
+    else{
         errorEl.textContent = "";
         errorEl.style.display = "none";
     }
@@ -55,8 +90,9 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 document.addEventListener('DOMContentLoaded', async() => {
     const token = localStorage.getItem('token');
+
     if(!token){
-        window.location.href = './index.html';
+        window.location.href= './index.html';
         return;
     }
     logoutBtn.addEventListener("click", handleLogout);
@@ -67,8 +103,8 @@ document.addEventListener('DOMContentLoaded', async() => {
 async function fetchAndLoadNotes() {
     try {
         const response = await apiFetch('api/notes', { method: "GET" });
-        let notesArray = [];
         
+        let notesArray = [];
         if (response && response.success === true && Array.isArray(response.data)) {
             notesArray = response.data;
         } else if (response && Array.isArray(response.data)) {
@@ -87,7 +123,8 @@ async function fetchAndLoadNotes() {
 
 async function displayNotes(notesArray){
     notesList.innerHTML = "";
-    if(!notesArray || notesArray.length === 0){
+    
+    if (!notesArray || notesArray.length === 0) {
         emptyStateList.style.display = "block";
         return;
     }
@@ -96,7 +133,7 @@ async function displayNotes(notesArray){
     notesArray.forEach(note => {
         const noteItem = document.createElement('div');
         noteItem.className = 'note-item';
-
+        
         const currentId = note._id; 
         if (currentId) {
             noteItem.setAttribute('data-id', currentId);
@@ -124,9 +161,15 @@ async function displayNotes(notesArray){
         const deleteEl = document.createElement('p');
         deleteEl.className = 'note-del';
         deleteEl.textContent = "DELETE";
+
         deleteEl.addEventListener('click', () => {
-            if (currentId) handleDeleteNote(currentId);
+            if (currentId) {
+                handleDeleteNote(currentId);
+            } else {
+                console.error("Visual item missing reference ID context mapping", note);
+            }
         });
+
         noteItem.appendChild(deleteEl);
         notesList.appendChild(noteItem);
     });
@@ -156,6 +199,7 @@ async function handleAddNote() {
                 body: formData 
             });
             uploadedImageUrl = uploadResponse.imageUrl;
+            localStorage.setItem('userImageURL', uploadedImageUrl);
         }
 
         await apiFetch('api/notes', {
@@ -167,9 +211,9 @@ async function handleAddNote() {
             }) 
         });
 
-        if (typeof socket !== 'undefined') {
+        if (typeof socket !== 'undefined' && socket.connected) {
             socket.emit('newActivityNotice', { 
-                message: `Someone added a note: "${noteText.substring(0, 20)}..."` 
+                message: `🔔 Someone added a note: "${noteText.substring(0, 20)}..."` 
             });
         }
 
@@ -195,10 +239,12 @@ function handleLogout(){
 
 async function handleDeleteNote(noteId){
     if(!noteId) return;
+    
     try {
-        await apiFetch(`api/notes/${noteId}` ,{ method: "DELETE" });
+        await apiFetch(`api/notes/${noteId}` , { method: "DELETE" });
+        
         await delay(150); 
-        await fetchAndLoadNotes();
+        await fetchAndLoadNotes(); 
     } catch(error) {
         if (!checkTokenExpiry(error)) {
             showError('Failed to delete note.'); 

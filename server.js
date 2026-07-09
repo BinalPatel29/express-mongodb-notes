@@ -34,15 +34,15 @@ io.on('connection', (socket) => {
     logger.info({ socketId: socket.id }, 'A secure Socket.io connection pipeline opened with client device');
 
     socket.on('newActivityNotice', (data) => {
-        logger.info({ data }, 'Real-time note notification packet received on backend server cluster');
+        logger.info({ socketId: socket.id, data }, 'Real-time note notification packet received on backend server cluster');
         
         socket.broadcast.emit('liveNotification', {
             text: data.message || "A member of your workspace added a new note card entry!"
         });
     });
 
-    socket.on('disconnect', () => {
-        logger.info({ socketId: socket.id }, "Socket.io real-time communication pipeline channel disconnected");
+    socket.on('disconnect', (reason) => {
+        logger.warn({ socketId: socket.id, reason }, "Socket.io real-time communication pipeline channel disconnected");
     });
 });
 
@@ -74,7 +74,7 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// STATIC ASSET INTERFACES (Placed above rate limiters to avoid file blocking issues)
+// STATIC ASSET INTERFACES
 app.use('/frontend', express.static('frontend'));
 app.use('/js', express.static('js'));
 app.use('/css', express.static('css'));
@@ -166,7 +166,6 @@ app.get('/api/new', (req, res) => {
     res.status(200).json({ message: 'ok' });
 });
 
-// ROUTING WITH ROUTE-SPECIFIC MIDDLEWARE 
 app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/notes', protect, noteRouter);
 
@@ -174,13 +173,11 @@ app.get('/', (req, res) => {
     res.redirect('/frontend/register.html');
 });
 
-// FALLBACK 404
 app.use((req, res) => {
     logger.warn({ path: req.path, method: req.method }, 'Client attempted to hit non-existent endpoint pipeline');
     res.status(404).json({ error: 'Route not found' });
 });
 
-// GLOBAL ERROR INTERCEPTOR
 app.use(errorHandler);
 
 httpServer.listen(PORT, () => {
