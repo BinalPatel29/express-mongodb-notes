@@ -46,8 +46,8 @@ socket.io.on("reconnect_attempt", (attempt) => {
 socket.io.on("reconnect", (attempt) => {
     console.log(`[Socket.io] Reconnected successfully after ${attempt} attempts.`);
     if (toastBanner && toastMessage) {
-        toastMessage.textContent = "⚡ Connection restored! Workspaces synchronized.";
-        toastBanner.style.backgroundColor = "#007bff"; // Connection Blue
+        toastMessage.textContent = "Connection restored! Workspaces synchronized.";
+        toastBanner.style.backgroundColor = "#007bff"; 
         
         setTimeout(() => {
             toastBanner.style.display = "none";
@@ -213,7 +213,7 @@ async function handleAddNote() {
 
         if (typeof socket !== 'undefined' && socket.connected) {
             socket.emit('newActivityNotice', { 
-                message: `🔔 Someone added a note: "${noteText.substring(0, 20)}..."` 
+                message: `Someone added a note: "${noteText.substring(0, 20)}..."` 
             });
         }
 
