@@ -27,7 +27,6 @@ function checkTokenExpiry(error) {
     return false;
 }
 
-// Disable fields while loading
 function setFormEnabled(enabled) {
     noteInput.disabled = !enabled;
     fileInput.disabled = !enabled;
@@ -48,7 +47,6 @@ document.addEventListener('DOMContentLoaded', async() => {
 async function fetchAndLoadNotes() {
     try {
         const response = await apiFetch('/api/notes', { method: "GET" });
-        // Handle pagination object if server returns wrapped response structure
         const arrayData = response.data ? response.data : response;
         displayNotes(arrayData); 
     } catch(error) {
@@ -103,21 +101,23 @@ async function handleAddNote() {
     showError("");
     const noteText = noteInput.value.trim();
 
-    if(!noteText){
-        showError("Note cannot be empty.");
+    // Early Guard Rail: Enforce mandatory text required rule before uploading anything
+    if (!noteText || noteText.length < 2) {
+        showError("Please enter text content for your note (minimum 2 characters).");
         noteInput.focus();
         return;
     }
+    
     setFormEnabled(false);
 
     try {
         let uploadedImageUrl = "";
 
+        // The image upload only runs if text validation passes successfully
         if (fileInput.files && fileInput.files[0]) {
             const formData = new FormData();
             formData.append('image', fileInput.files[0]);
 
-            // Notice the combined path match: /api/notes/upload
             const uploadResponse = await apiFetch('/api/notes/upload', {
                 method: 'POST',
                 body: formData 
