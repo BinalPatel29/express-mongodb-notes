@@ -30,6 +30,8 @@ const io = new Server(httpServer, {
     }
 });
 
+app.set('io', io);
+
 io.on('connection', (socket) => {
     logger.info({ socketId: socket.id }, 'A secure Socket.io connection pipeline opened with client device');
 
@@ -49,12 +51,10 @@ io.on('connection', (socket) => {
 app.use(express.json());
 app.use(cookieParser());
 
-// HELMET HEADERS 
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// CORS CONFIGURATION 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',')
     : ['http://localhost:3000', 'http://127.0.0.1:5501']; 
@@ -74,14 +74,12 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// STATIC ASSET INTERFACES
 app.use('/frontend', express.static('frontend'));
 app.use('/js', express.static('js'));
 app.use('/css', express.static('css'));
 app.use('/uploads', express.static('uploads')); 
 app.use(express.static('public'));
 
-// GLOBAL RATE LIMITER 
 const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
@@ -95,7 +93,6 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// AUTH RATE LIMITER
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, 
     max: 20, 
@@ -108,7 +105,6 @@ const authLimiter = rateLimit({
     }
 });
 
-// MALFORMED JSON MIDDLEWARE
 app.use((err, req, res, next) => {
     if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
         logger.warn({ path: req.path, method: req.method }, 'Incoming request failed: Malformed JSON payload received');
@@ -117,13 +113,11 @@ app.use((err, req, res, next) => {
     next();
 });
 
-// DATABASE CONNECTION
 if (!process.env.MONGO_URI) {
     logger.fatal('Application crash initialization error: Missing MONGO_URI string inside environment configuration settings');
     process.exit(1);
 }
 
-// REDIS CONNECTION CLIENT
 const redisClient = createClient({
     url: process.env.REDIS_URL || 'redis://127.0.0.1:6379'
 });
@@ -160,7 +154,6 @@ async function startDatabases() {
 
 startDatabases();
 
-// ROUTES
 app.get('/api/new', (req, res) => {
     logger.info({ path: '/api/new', method: 'GET' }, 'Healthcheck baseline verification requested');
     res.status(200).json({ message: 'ok' });
