@@ -1,9 +1,12 @@
-import express, { Router } from 'express';
+import { Router } from 'express';
 import Note from '../models/noteModel.js';
 import { validateNote } from '../validators/noteValidator.js';
 import logger from '../src/utils/logger.js';
 import upload from '../src/utils/upload.js'; 
 import { Types } from 'mongoose';
+import sharp from 'sharp';
+import path from 'path';
+import fs from 'fs';
 
 const router = Router();
 const CACHE_TTL_SECONDS = 86400;
@@ -108,16 +111,46 @@ router.get('/:id', asyncHandler(async (req, res, next) => {
     }
 }));
 
-router.post('/upload', upload.single('image'), (req, res) => {
+router.post('/upload', upload.single('image'), asyncHandler(async (req, res, next) => {
     if (!req.file) {
        return res.status(400).json({ message : 'No file uploaded' });
     }
-    const imageUrl = `http://localhost:3000/uploads/${req.file.filename}`;
-    res.status(200).json({
-        message: "Image uploaded successfully",
-        imageUrl: imageUrl
-    });
-});
+
+    try {
+        const uploadDir = path.resolve('./uploads');
+        
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const filename = uniqueSuffix + path.extname(req.file.originalname);
+        const outputPath = path.join(uploadDir, filename);
+
+        await sharp(req.file.buffer)
+            .resize({ width: 800, height: 800, fit: 'inside', withoutEnlargement: true })
+            .toFile(outputPath);
+
+        logger.info({ filename }, 'Image file successfully downscaled and saved locally onto storage cluster');
+
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('liveNotification', {
+                text: `image resizing successfully: ${req.file.originalname}`,
+                filename: filename
+            });
+        }
+
+        const imageUrl = `http://localhost:3000/uploads/${filename}`;
+        return res.status(200).json({
+            message: "Image uploaded successfully",
+            imageUrl: imageUrl
+        });
+    } catch (resizeError) {
+        logger.error({ error: resizeError.message }, 'Image resizing process pipeline failure encountered');
+        return next(resizeError);
+    }
+}));
 
 router.post('/', asyncHandler(async (req, res, next) => {
     const logContext = { path: '/notes', method: 'POST', userId: req.userId };
@@ -183,6 +216,5 @@ router.delete('/:id', asyncHandler(async (req, res, next) => {
     await invalidateUserCache(req.userId, req.params.id);
     res.json({ message: 'Note deleted successfully' });
 }));
-
 
 export default router;

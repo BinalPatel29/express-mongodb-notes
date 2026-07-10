@@ -38,7 +38,7 @@ export async function apiFetch(endpoint, options = {}) {
                 localStorage.setItem("token", refreshData.token); 
 
                 const retryHeaders = {
-                    ...options.headers,
+                    ...headers,
                     Authorization: `Bearer ${refreshData.token}`
                 };
 

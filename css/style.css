@@ -241,6 +241,7 @@ a:hover {
   text-align: left;
   font-size: 25px;
   font-weight: bold;
+  padding-top: 0;
 }
 
 .note-img {
@@ -298,7 +299,14 @@ a:hover {
 
 .toast-icon {
   font-size: 20px;
-  margin-top: 22px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.toast-alert p {
+  padding-top: 0;
+  margin: 0;
+  text-align: left;
 }
 
 @keyframes slideInFromRight {
