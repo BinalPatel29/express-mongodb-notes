@@ -3,9 +3,9 @@ import mongoose from 'mongoose';
 const notesSchema = new mongoose.Schema({
   text: { 
     type: String, 
-    required: true, // FIXED: Re-enforced mandatory text fields
+    required: true, 
     trim: true,
-    minlength: 2 // FIXED: Enforces at least a 2-character note text signature
+    minlength: 2 
   },
   userId: {  
     type: mongoose.Schema.Types.ObjectId, 
