@@ -245,10 +245,12 @@ a:hover {
 }
 
 .note-img {
-  max-width: 100%;
-  width: 300px;
-  max-height: 200px;
-  object-fit: cover;
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  max-height: 400px;
+  object-fit: contain;
+  object-position: left center;
   border-radius: 6px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   margin-top: 5px;

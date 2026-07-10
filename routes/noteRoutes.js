@@ -128,7 +128,7 @@ router.post('/upload', upload.single('image'), asyncHandler(async (req, res, nex
         const outputPath = path.join(uploadDir, filename);
 
         await sharp(req.file.buffer)
-            .resize({ width: 800, height: 800, fit: 'inside', withoutEnlargement: true })
+            .rotate()
             .toFile(outputPath);
 
         logger.info({ filename }, 'Image file successfully downscaled and saved locally onto storage cluster');
