@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  note-api-service:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - DOCKER_ENV=true
+      - MONGO_URI=mongodb://mongo:27017/note_db
+      - REDIS_URL=redis://redis:6379
+    networks:
+      - app-network
+    depends_on:
+      - mongo
+      - redis
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+volumes:
+  mongo-data:
+
+networks:
+  app-network:
+    driver: bridge
