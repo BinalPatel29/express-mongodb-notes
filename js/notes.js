@@ -8,57 +8,8 @@ const logoutBtn = document.getElementById('logoutBtn');
 const emptyStateList = document.getElementById('emptyState');
 const errorEl = document.getElementById('errorMessage');
 
-const socket = io("http://localhost:3000", { 
-    withCredentials: true,
-    transports: ['websocket'],
-    reconnection: true,             
-    reconnectionAttempts: Infinity, 
-    reconnectionDelay: 1000,        
-    reconnectionDelayMax: 5000,     
-    timeout: 20000                  
-});
-
 const toastBanner = document.getElementById('notification-toast');
 const toastMessage = document.getElementById('notification-message');
-
-socket.on('liveNotification', (data) => {
-    if (toastBanner && toastMessage && data && data.text) {
-        toastMessage.textContent = data.text;
-        toastBanner.style.display = "flex";
-        toastBanner.style.backgroundColor = "#28a745"; 
-
-        if (window.toastTimer) clearTimeout(window.toastTimer);
-        window.toastTimer = setTimeout(() => {
-            toastBanner.style.display = "none";
-        }, 5000);
-    }
-});
-
-socket.io.on("reconnect_attempt", (attempt) => {
-    console.warn(`[Socket.io] Connection dropped. Attempting graceful reconnect #${attempt}...`);
-    if (toastBanner && toastMessage) {
-        toastMessage.textContent = "Network unstable. Reconnecting to sync server...";
-        toastBanner.style.display = "flex";
-        toastBanner.style.backgroundColor = "#ffc107"; 
-    }
-});
-
-socket.io.on("reconnect", (attempt) => {
-    console.log(`[Socket.io] Reconnected successfully after ${attempt} attempts.`);
-    if (toastBanner && toastMessage) {
-        toastMessage.textContent = "Connection restored! Workspaces synchronized.";
-        toastBanner.style.backgroundColor = "#007bff"; 
-        
-        setTimeout(() => {
-            toastBanner.style.display = "none";
-            if (typeof fetchAndLoadNotes === 'function') fetchAndLoadNotes();
-        }, 3000);
-    }
-});
-
-socket.io.on("reconnect_error", (error) => {
-    console.error("[Socket.io] Reconnection pass failed: ", error.message);
-});
     
 function showError(message){
     if(message){
@@ -210,12 +161,6 @@ async function handleAddNote() {
                 imageUrl: uploadedImageUrl 
             }) 
         });
-
-        if (typeof socket !== 'undefined' && socket.connected) {
-            socket.emit('newActivityNotice', { 
-                message: `Someone added a note: "${noteText.substring(0, 20)}..."` 
-            });
-        }
 
         noteInput.value = "";
         if (fileInput) fileInput.value = ""; 

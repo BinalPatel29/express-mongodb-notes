@@ -12,8 +12,8 @@ import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';        
 import { createClient } from 'redis';
 import cookieParser from 'cookie-parser';
+import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { createServer } from 'http'; 
 
 const app = express(); 
 const PORT = process.env.PORT || 3000;
@@ -21,32 +21,13 @@ const PORT = process.env.PORT || 3000;
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
-        origin: (origin, callback) => {
-            callback(null, true);
-        },
-        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization"],
-        credentials: true
+        origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000', 'http://127.0.0.1:5501'],
+        credentials: true,
+        methods: ['GET', 'POST']
     }
 });
 
-app.set('io', io);
-
-io.on('connection', (socket) => {
-    logger.info({ socketId: socket.id }, 'A secure Socket.io connection pipeline opened with client device');
-
-    socket.on('newActivityNotice', (data) => {
-        logger.info({ socketId: socket.id, data }, 'Real-time note notification packet received on backend server cluster');
-        
-        socket.broadcast.emit('liveNotification', {
-            text: data.message || "A member of your workspace added a new note card entry!"
-        });
-    });
-
-    socket.on('disconnect', (reason) => {
-        logger.warn({ socketId: socket.id, reason }, "Socket.io real-time communication pipeline channel disconnected");
-    });
-});
+global.io = io;
 
 app.use(express.json());
 app.use(cookieParser());
@@ -113,23 +94,30 @@ app.use((err, req, res, next) => {
     next();
 });
 
-if (!process.env.MONGO_URI) {
-    logger.fatal('Application crash initialization error: Missing MONGO_URI string inside environment configuration settings');
-    process.exit(1);
-}
-
-const redisClient = createClient({
-    url: process.env.REDIS_URL || 'redis://127.0.0.1:6379'
-});
+const redisUrl = process.env.REDIS_URL || 'redis://redis:6379';
+const redisClient = createClient({ url: redisUrl });
 
 redisClient.on('error', (err) => {
     logger.error({ error: err.message }, 'Redis engine connection error');
     global.redisClient = null;
 });
 
+const mongooseOptions = {
+    serverSelectionTimeoutMS: 30000, 
+    socketTimeoutMS: 45000,
+};
+
 async function startDatabases() {
+    const targetMongoUri = process.env.MONGO_URI || "mongodb://mongo:27017/note_db";
+
+    if (!targetMongoUri) {
+        logger.fatal('Application crash initialization error: Missing MONGO_URI string inside environment configuration settings');
+        process.exit(1);
+    }
+
     try {
-        await mongoose.connect(process.env.MONGO_URI);
+        logger.info(`Attempting network database connection handshake to: ${targetMongoUri}`);
+        await mongoose.connect(targetMongoUri, mongooseOptions);
         logger.info('Database connection verified: MongoDB connected successfully');
     
         try {
@@ -148,11 +136,25 @@ async function startDatabases() {
             logger.warn({ error: indexError.message }, 'Non-fatal database index synchronization warning');
         }
     } catch (err) {
-        logger.error({ error: err.message, stack: err.stack }, 'Database operational system connection failed');
+        logger.error({ error: err.message }, 'Database connection failed. MongoDB container might still be starting up.');
+        logger.info('Re-queueing operational connection establishment routing handshake in 5 seconds...');
+        setTimeout(startDatabases, 5000);
     }
 }
 
 startDatabases();
+
+io.on('connection', (socket) => {
+    logger.info({ socketId: socket.id }, 'Real-time WebSocket client gateway connected successfully');
+
+    socket.on('newActivityNotice', (data) => {
+        socket.broadcast.emit('liveNotification', { text: data.message });
+    });
+
+    socket.on('disconnect', () => {
+        logger.info({ socketId: socket.id }, 'Real-time WebSocket client gateway disconnected');
+    });
+});
 
 app.get('/api/new', (req, res) => {
     logger.info({ path: '/api/new', method: 'GET' }, 'Healthcheck baseline verification requested');
