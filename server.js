@@ -14,6 +14,7 @@ import { createClient } from 'redis';
 import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import fileUpload from 'express-fileupload';
 
 const app = express(); 
 const PORT = process.env.PORT || 3000;
@@ -31,6 +32,7 @@ global.io = io;
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(fileUpload());
 
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }

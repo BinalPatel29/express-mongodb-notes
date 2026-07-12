@@ -141,9 +141,9 @@ async function handleAddNote() {
     try {
         let uploadedImageUrl = "";
 
-        if (fileInput && fileInput.files && fileInput.files[0]) {
+        if (fileInput && fileInput.files && fileInput.files) {
             const formData = new FormData();
-            formData.append('image', fileInput.files[0]);
+            formData.append('image', fileInput.files);
 
             const uploadResponse = await apiFetch('api/notes/upload', {
                 method: 'POST',
