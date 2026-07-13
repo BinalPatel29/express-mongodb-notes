@@ -17,6 +17,7 @@ const jwt = (await import('jsonwebtoken')).default;
 
 beforeAll(() => {
   logger.level = 'silent'; 
+  process.env.NODE_ENV = 'test';
   process.env.JWT_SECRET = 'test-environment-jwt-secret-key-12345'; 
   process.env.REFRESH_TOKEN_SECRET = 'test-environment-refresh-secret-key-67890';
 });
