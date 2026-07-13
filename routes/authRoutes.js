@@ -120,44 +120,62 @@ router.post('/login', asyncHandler(async (req, res, next) => {
 router.post('/refresh', asyncHandler(async (req, res, next) => {
     const logContext = { path: '/refresh', method: 'POST' };
     const cookies = req.cookies;
-    
+
     if (!cookies?.refresh_token) {
-        return res.status(401).json({ message: 'unauthorized' });
+        return res.status(401).json({
+            success: false,
+            message: 'unauthorized',
+            code: 'UNAUTHORIZED'
+        });
     }
 
     const oldRefreshToken = cookies.refresh_token;
     const user = await User.findOne({ refreshTokens: oldRefreshToken });
 
     if (!user) {
-        jwt.verify(oldRefreshToken, process.env.REFRESH_TOKEN_SECRET, async (err, decoded) => {
-            if (!err && decoded) {
+        try {
+            const decoded = jwt.verify(oldRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+            if (decoded && decoded.userId) {
                 await User.updateOne({ _id: decoded.userId }, { $set: { refreshTokens: [] } });
                 logger.error({ ...logContext, userId: decoded.userId }, "Breach threat detected: All active tokens purged.");
             }
-        });
+        } catch (err) {
+            logger.warn({ ...logContext }, "Failed to decode untrusted reuse token verification request");
+        }
+
         res.clearCookie('refresh_token', cookieClearOptions);
-        return res.status(403).json({ message: 'compromised session: please, re-authentication' });
+        return res.status(403).json({
+            success: false,
+            message: 'compromised session: please, re-authentication',
+            code: 'TOKEN_COMPROMISED'
+        });
     }
 
-    jwt.verify(oldRefreshToken, process.env.REFRESH_TOKEN_SECRET, async (err, decoded) => {
-        if (err) {
-            user.refreshTokens = user.refreshTokens.filter(rt => rt !== oldRefreshToken);
-            await user.save();
-            res.clearCookie('refresh_token', cookieClearOptions);
-            return res.status(403).json({ message: 'Session expired' });
-        }
+    try {
+        const decoded = jwt.verify(oldRefreshToken, process.env.REFRESH_TOKEN_SECRET);
 
         user.refreshTokens = user.refreshTokens.filter(rt => rt !== oldRefreshToken);
 
         const newAccessToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
         const newRefreshToken = jwt.sign({ userId: user._id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
-            
+
         user.refreshTokens.push(newRefreshToken);
         await user.save();
 
         setRefreshTokenCookies(res, newRefreshToken);
         res.json({ token: newAccessToken });
-    });
+
+    } catch (err) {
+        user.refreshTokens = user.refreshTokens.filter(rt => rt !== oldRefreshToken);
+        await user.save();
+    
+        res.clearCookie('refresh_token', cookieClearOptions);
+        return res.status(403).json({
+            success: false,
+            message: 'Session expired',
+            code: 'TOKEN_EXPIRED'
+        });
+    }
 }));
 
 router.post('/logout-all', asyncHandler(async (req, res, next) => {
