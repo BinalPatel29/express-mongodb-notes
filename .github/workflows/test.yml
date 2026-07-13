@@ -31,11 +31,6 @@ jobs:
           node-version: '18'
           cache: 'npm'
 
-      - name: Install Native Image Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libvips-dev
-
       - name: Install Dependencies
         run: npm install
 
@@ -46,4 +41,6 @@ jobs:
           JWT_SECRET: test-environment-jwt-secret-key-12345
           REFRESH_TOKEN_SECRET: test-environment-refresh-secret-key-67890
           REDIS_URL: redis://localhost:6379
+          MONGOMS_VERSION: 6.0.5
+          MONGOMS_SYSTEM_BINARY_SKIP: false
         run: npm test
