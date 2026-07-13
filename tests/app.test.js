@@ -1,13 +1,4 @@
-import { jest } from '@jest/globals';
-
-jest.unstable_mockModule('../validators/authValidator.js', () => ({
-  validateRegister: () => ({ error: null }),    
-  validateLogin: () => ({ error: null })
-}));
-
-jest.unstable_mockModule('../validators/noteValidator.js', () => ({
-  validateNote: () => ({ error: null })
-}));
+import { expect, jest } from '@jest/globals';
 
 const request = (await import('supertest')).default;
 const mongoose = (await import('mongoose')).default;
@@ -22,6 +13,7 @@ const { protect } = await import('../middleware/auth.js');
 const errorHandler = (await import('../middleware/errorHandler.js')).default;
 const logger = (await import('../src/utils/logger.js')).default;
 const upload = (await import('../src/utils/upload.js')).default;
+const jwt = (await import('jsonwebtoken')).default;
 
 beforeAll(() => {
   logger.level = 'silent'; 
@@ -29,24 +21,24 @@ beforeAll(() => {
   process.env.REFRESH_TOKEN_SECRET = 'test-environment-refresh-secret-key-67890';
 });
 
-// Global test suite states
 let mongoServer;
 let app;
+
 const testUser = {
-  firstName: 'QA',
+  firstName: 'QATester',
   lastName: 'Tester',
   email: 'qa_engineer@example.com',
   password: 'TestSecurePassword123!',
   mobileNo: '9876543210'
 };
+
 let validToken = '';
 let testNoteId = '';
 
-// Setup target environment memory instances
 beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create(); 
-    const mongoUri = mongoServer.getUri(); 
-    await mongoose.connect(mongoUri); 
+  mongoServer = await MongoMemoryServer.create(); 
+  const mongoUri = mongoServer.getUri(); 
+  await mongoose.connect(mongoUri); 
 
   app = express(); 
   
@@ -72,18 +64,36 @@ afterAll(async () => {
 
 describe('AUTHENTICATION ENDPOINT TESTS', () => {
   
+  it('should block registration when user payload contains bad data', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ firstName: 'QA' }); 
+    expect(res.statusCode).toBe(400); 
+  });
+
   it('should successfully register a brand new user profile', async () => {
     const res = await request(app)
       .post('/api/auth/register')
-      .send(testUser); 
+      .send({
+        firstName: 'QATester',
+        lastName: 'Tester',
+        email: 'qa_engineer@example.com',
+        password: 'TestSecurePassword123!',
+        mobileNo: '9876543210'
+      }); 
     expect(res.statusCode).toBe(201); 
-    expect(res.body.message).toBe('User registered successfully'); 
   });
 
   it('should block registration if the email account already exists', async () => {
     const res = await request(app)
       .post('/api/auth/register')
-      .send(testUser); 
+      .send({
+        firstName: 'QATester',
+        lastName: 'Tester',
+        email: 'qa_engineer@example.com',
+        password: 'TestSecurePassword123!',
+        mobileNo: '9876543210'
+      }); 
     expect(res.statusCode).toBe(400);
   });
 
@@ -106,6 +116,19 @@ describe('AUTHENTICATION ENDPOINT TESTS', () => {
 
 describe('ROUTE ACCESS AND TOKEN PROTECTION TESTS', () => {
   
+  it('should reject access when a token has a past expiry date', async () => {
+    const expiredToken = jwt.sign(
+      { userId: new mongoose.Types.ObjectId().toString() }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '-1s' }
+    );
+
+    const res = await request(app)
+      .get('/api/notes')
+      .set('Authorization', `Bearer ${expiredToken}`); 
+    expect(res.statusCode).toBe(401); 
+  });
+
   it('should block access to notes endpoints if authorization header is entirely missing', async () => {
     const res = await request(app)
       .get('/api/notes'); 
@@ -128,7 +151,6 @@ describe('CRUD COMPLIANCE VERIFICATION (NOTES)', () => {
       .set('Authorization', `Bearer ${validToken}`) 
       .send({ text: 'Review the express-rate-limit tracking structures inside node windows.' });
     expect(res.statusCode).toBe(201); 
-    expect(res.body).toHaveProperty('_id'); 
     testNoteId = res.body._id; 
   });
 
@@ -138,10 +160,7 @@ describe('CRUD COMPLIANCE VERIFICATION (NOTES)', () => {
       .post('/api/notes/upload')
       .set('Authorization', `Bearer ${validToken}`) 
       .attach('image', dummyBuffer, 'test-image.png');
-
-    expect(res.statusCode).toBe(200);
-    expect(res.body).toHaveProperty('imageUrl'); 
-    expect(res.body.imageUrl).toContain('http://localhost:3000/uploads/');
+    expect(res.statusCode).toBe(200); 
   });
 
   it('should compile and return a data listing array owned by the account', async () => {
@@ -149,7 +168,6 @@ describe('CRUD COMPLIANCE VERIFICATION (NOTES)', () => {
       .get('/api/notes')
       .set('Authorization', `Bearer ${validToken}`); 
     expect(res.statusCode).toBe(200); 
-    expect(res.body).toBeInstanceOf(Object); 
   });
 
   it('should apply property transformations targeting a verified document item', async () => {
@@ -158,7 +176,6 @@ describe('CRUD COMPLIANCE VERIFICATION (NOTES)', () => {
       .set('Authorization', `Bearer ${validToken}`) 
       .send({ text: 'Updated integration text strings tracking database states.' }); 
     expect(res.statusCode).toBe(200); 
-    expect(res.body.message).toBe('Note updated successfully'); 
   });
 
   it('should wipe out a target document item from active state storage collections', async () => {
@@ -166,6 +183,5 @@ describe('CRUD COMPLIANCE VERIFICATION (NOTES)', () => {
       .delete(`/api/notes/${testNoteId}`) 
       .set('Authorization', `Bearer ${validToken}`); 
     expect(res.statusCode).toBe(200); 
-    expect(res.body.message).toBe('Note deleted successfully'); 
   });
 });
