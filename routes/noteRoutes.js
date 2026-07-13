@@ -109,6 +109,53 @@ router.get('/:id', asyncHandler(async (req, res, next) => {
     return res.json(note);
 }));
 
+router.get('/stats/activity', asyncHandler(async (req, res, next) => {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  
+    const stats = await Note.aggregate([
+        {
+            $match: {
+            userId: new Types.ObjectId(req.userId),
+            createdAt: { $gte: thirtyDaysAgo }
+            }
+        },
+        {
+            $group: {
+            _id: "$userId",
+            totalNotes: { $sum: 1 }
+            }
+        },
+        {
+            $lookup: {
+            from: "users",
+            localField: "_id",
+            foreignField: "_id",
+            as: "userProfile"
+            }
+        },
+        {
+            $unwind: {
+            path: "$userProfile",
+            preserveNullAndEmptyLines: true
+            }
+        },
+        {
+            $project: {
+            _id: 0,
+            userId: "$_id",
+            totalNotes: 1,
+            userEmail: "$userProfile.email",
+            userName: { $concat: ["$userProfile.firstName", " ", "$userProfile.lastName"] }
+            }
+        }
+    ]);
+
+    res.json({
+        success: true,
+        data: stats[0] || { userId: req.userId, totalNotes: 0, userName: "", userEmail: "" }
+    });
+}));
+
 router.post('/upload', upload.single('image'), asyncHandler(async (req, res, next) => {
     if (!req.file) {
         return res.status(400).json({
