@@ -66,24 +66,49 @@ app.use(express.static('public'));
 const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
-    message: { status: 429, error: "Too many requests, please try again later." },
-    standardHeaders: false,        
-    legacyHeaders: false,          
+    message: { 
+        success: false,
+        message: "Too many requests, please try again later.",
+        code: "TOO_MANY_REQUESTS"
+    },
+    standardHeaders: false,
+    legacyHeaders: false,
     handler: (req, res, next, options) => {
         logger.warn({ ip: req.ip, path: req.path }, "Global rate limit exceeded by client ip");
         res.status(options.statusCode).json(options.message);
     }
 });
+
 app.use(globalLimiter);
 
 const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, 
-    max: 20, 
-    message: { status: 429, error: "Too many authentication attempts. Please try again after 15 minutes." },
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: { 
+        success: false,
+        message: "Too many authentication attempts. Please try again after 15 minutes.",
+        code: "TOO_MANY_REQUESTS"
+    },
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     handler: (req, res, next, options) => {
         logger.warn({ ip: req.ip, path: req.path }, 'Auth rate limit exceeded! Potential brute force attempt.');
+        res.status(options.statusCode).json(options.message);
+    }
+});
+
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: { 
+        success: false,
+        message: "Too many login attempts. Please try again after 15 minutes.",
+        code: "TOO_MANY_REQUESTS"
+    },
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    handler: (req, res, next, options) => {
+        logger.warn({ ip: req.ip, path: req.path }, 'Login rate limit exceeded! Bruteforce attack vector blocked.');
         res.status(options.statusCode).json(options.message);
     }
 });
@@ -163,6 +188,7 @@ app.get('/api/new', (req, res) => {
     res.status(200).json({ message: 'ok' });
 });
 
+app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/notes', protect, noteRouter);
 
