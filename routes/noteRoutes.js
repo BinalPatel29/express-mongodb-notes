@@ -46,11 +46,19 @@ async function invalidateUserCache(userId, specificNoteId = null) {
 
 router.get('/', asyncHandler(async (req, res, next) => {
     let { page = 1, limit = 10, sort = '-createdAt', text } = req.query;
-    
     page = Math.max(1, parseInt(page, 10) || 1);
     limit = Math.max(1, parseInt(limit, 10) || 10);
-    
     const cachekeys = `notes:${req.userId}:p_${page}:l_${limit}:s_${sort}:t_${text || 'none'}`;
+
+    if (global.redisClient) {
+    const cachedListing = await global.redisClient.get(cachekeys);
+    
+        if (cachedListing) {
+            logger.info({ userId: req.userId, cacheKey: cachekeys }, "Redis List Cache HIT: Instantly returning matching pagination state records");
+            return res.json(JSON.parse(cachedListing));
+        }
+    }
+
     let user_id = new Types.ObjectId(req.userId);
     const filter = { userId: user_id, ...(text && { text: { $regex: text, $options: 'i' } }) };
     const allowedSort = ['createdAt', 'updatedAt', 'text', '-createdAt', '-updatedAt', '-text'];
@@ -63,13 +71,14 @@ router.get('/', asyncHandler(async (req, res, next) => {
         Note.countDocuments(filter)
     ]);
     const responsePayload = { success: true, data: notes, pagination: { totalItems, totalPages: Math.ceil(totalItems / limit), currentPage: page } };
-    
+
     if (global.redisClient) {
         await global.redisClient.setEx(cachekeys, CACHE_TTL_SECONDS, JSON.stringify(responsePayload));
     }
-    
+
     res.json(responsePayload);
 }));
+
 
 router.get('/:id', asyncHandler(async (req, res, next) => {
     const noteId = req.params.id;
