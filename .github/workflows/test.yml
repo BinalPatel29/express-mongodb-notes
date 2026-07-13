@@ -1,13 +1,25 @@
 name: Run Tests
 
-# Trigger this workflow on every push or pull request
 on:
   push:
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
 
 jobs:
   test:
-    runs-on: ubuntu-latest # Use the latest Ubuntu runner
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10ms
+          --health-timeout 5ms
+          --health-retries 5
 
     steps:
       - name: Checkout Code
@@ -16,7 +28,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18' # Match your local Node version
+          node-version: '18'
           cache: 'npm'
 
       - name: Install Dependencies
@@ -24,5 +36,6 @@ jobs:
 
       - name: Run Tests
         env:
-          FORCE_COLOR: 1 # This forces the terminal to output green/red colors
+          FORCE_COLOR: 1
+          REDIS_URL: redis://localhost:6379
         run: npm test
