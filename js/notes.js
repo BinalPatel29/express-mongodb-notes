@@ -10,7 +10,20 @@ const errorEl = document.getElementById('errorMessage');
 
 const toastBanner = document.getElementById('notification-toast');
 const toastMessage = document.getElementById('notification-message');
+const socket = io();
+
+socket.on('liveNotification', (data) => {
+    if (toastBanner && toastMessage) {
+        toastMessage.textContent = data.text;
     
+        toastBanner.style.display = 'flex';
+
+        setTimeout(() => {
+            toastBanner.style.display = 'none';
+        }, 4000);
+    }
+});
+
 function showError(message){
     if(message){
         errorEl.textContent = message;
@@ -141,9 +154,9 @@ async function handleAddNote() {
     try {
         let uploadedImageUrl = "";
 
-        if (fileInput && fileInput.files && fileInput.files) {
+        if (fileInput && fileInput.files && fileInput.files.length > 0) {
             const formData = new FormData();
-            formData.append('image', fileInput.files);
+            formData.append('image', fileInput.files[0]);
 
             const uploadResponse = await apiFetch('api/notes/upload', {
                 method: 'POST',
