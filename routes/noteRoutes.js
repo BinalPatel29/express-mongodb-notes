@@ -5,11 +5,11 @@ import Note from '../models/noteModel.js';
 import User from '../models/userModel.js';
 import { validateNote } from '../validators/noteValidator.js';
 import logger from '../src/utils/logger.js';
-import upload from '../src/utils/upload.js';
 import { Types } from 'mongoose';
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
+import { imageQueue } from '../src/queue/imageQueue.js';
 
 const router = Router();
 const CACHE_TTL_SECONDS = 86400;
@@ -78,7 +78,6 @@ router.get('/', asyncHandler(async (req, res, next) => {
 
     res.json(responsePayload);
 }));
-
 
 router.get('/:id', asyncHandler(async (req, res, next) => {
     const noteId = req.params.id;
@@ -156,52 +155,38 @@ router.get('/stats/activity', asyncHandler(async (req, res, next) => {
     });
 }));
 
-router.post('/upload', upload.single('image'), asyncHandler(async (req, res, next) => {
-    if (!req.file) {
-        return res.status(400).json({
-            success: false,
-            message: 'No file uploaded',
-            code: 'VALIDATION_ERROR'
-        });
-    }
+router.post('/upload', asyncHandler(async (req, res, next) => { 
+    if (!req.files || !req.files.image) { 
+        return res.status(400).json({ success: false, message: 'No file uploaded', code: 'VALIDATION_ERROR' }); 
+    } 
 
-    const payload = { text: req.body.text || "Uploaded Image Note", userId: req.userId };
-    const { error } = validateNote(payload);
-    
-    if (error) {
-        return res.status(400).json({
-            success: false,
-            message: error,
-            code: 'VALIDATION_ERROR'
-        });
-    }
+    const file = req.files.image; 
+    const payload = { text: req.body.text || "Uploaded Image Note", userId: req.userId }; 
+    const { error } = validateNote(payload); 
+    if (error) { 
+        return res.status(400).json({ success: false, message: error, code: 'VALIDATION_ERROR' }); 
+    } 
 
-    const uploadDir = path.resolve('./uploads');
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9); 
+    const filename = uniqueSuffix + path.extname(file.name || 'test-image.png'); 
     
-    if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-    }
+    const bufferData = file.data.toString('base64'); 
 
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const filename = uniqueSuffix + path.extname(req.file.originalname || 'test-image.png');
-    const outputPath = path.join(uploadDir, filename);
-    
-    if (process.env.NODE_ENV === 'test' || req.file.buffer.toString() === 'dummy-data-content' || !req.file.mimetype?.startsWith('image/')) {
-        fs.writeFileSync(outputPath, req.file.buffer);
-    } else {
-        await sharp(req.file.buffer)
-            .rotate()
-            .toFile(outputPath);
-    }
-  
-    logger.info({ filename }, 'Image file successfully processed and saved locally onto storage cluster');
-  
-    if (global.io) {
-       global.io.emit('liveNotification', { text: `image resizing successfully: ${req.file.originalname}`, filename: filename });
-    }
-    
-    const imageUrl = `http://localhost:3000/uploads/${filename}`;
-    return res.status(200).json({ success: true, message: "Image uploaded successfully", imageUrl: imageUrl });
+    const job = await imageQueue.add('optimizeImage', { 
+        originalname: file.name, 
+        bufferData, 
+        filename, 
+        isTest: process.env.NODE_ENV === 'test', 
+        mimetype: file.mimetype, 
+        text: payload.text, 
+        userId: req.userId 
+    }, { 
+        attempts: 3, 
+        backoff: { type: 'exponential', delay: 2000 } 
+    }); 
+
+    logger.info({ jobId: job.id, filename }, 'Image offloaded to background queue process successfully'); 
+    return res.status(202).json({ success: true, message: "Image uploaded and queued", jobId: job.id }); 
 }));
 
 router.post('/', asyncHandler(async (req, res, next) => {
