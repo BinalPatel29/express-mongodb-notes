@@ -178,16 +178,15 @@ describe('CRUD COMPLIANCE VERIFICATION (NOTES)', () => {
         testNoteId = res.body._id;
     });
 
-    it('should allow users to save an uploaded image file successfully', async () => {
+        it('should allow users to save an uploaded image file successfully', async () => {
         const dummyBuffer = Buffer.from('fake-image-binary-data');
         const res = await request(app)
             .post('/api/notes/upload')
             .set('Authorization', `Bearer ${validToken}`)
             .attach('image', dummyBuffer, 'test-image.png')
-            .field('text', 'Review validation logic against image notes paths.'); // Real note Joi validator screens this input text
-        
+            .field('text', 'Review validation logic against image notes paths.'); 
         expect(res.statusCode).toBe(202);
-        expect(res.body).toHaveProperty('jobId');
+        expect(res.body).toHaveProperty('jobId'); 
     });
 
     it('should compile and return a data listing array owned by the account', async () => {
