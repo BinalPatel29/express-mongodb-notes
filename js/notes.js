@@ -141,8 +141,8 @@ async function displayNotes(notesArray){
 
 async function handleAddNote() {
     showError("");
-    const noteText = noteInput.value.trim();
-
+    const noteText = noteInput.value.trim(); // Grab the string value inside your note text box
+    
     if (!noteText || noteText.length < 2) {
         showError("Please enter text content for your note (minimum 2 characters).");
         noteInput.focus();
@@ -150,34 +150,34 @@ async function handleAddNote() {
     }
     
     setFormEnabled(false);
-
+    
     try {
-        let uploadedImageUrl = "";
-
         if (fileInput && fileInput.files && fileInput.files.length > 0) {
             const formData = new FormData();
-            formData.append('image', fileInput.files[0]);
+            
+            formData.append('image', fileInput.files[0]); 
+            
+            formData.append('text', noteText); 
 
-            const uploadResponse = await apiFetch('api/notes/upload', {
-                method: 'POST',
+            await apiFetch('/api/notes/upload', { 
+                method: 'POST', 
                 body: formData 
             });
-            uploadedImageUrl = uploadResponse.imageUrl;
-            localStorage.setItem('userImageURL', uploadedImageUrl);
+            
+            showError("Image note queued for background processing! It will appear on your feed shortly.");
+        } 
+        else {
+            await apiFetch('/api/notes', { 
+                method : "POST", 
+                headers: { "Content-Type": "application/json" }, 
+                body : JSON.stringify({ text : noteText, imageUrl: "" }) 
+            });
+            await fetchAndLoadNotes();
         }
-
-        await apiFetch('api/notes', {
-            method : "POST",
-            headers: { "Content-Type": "application/json" },
-            body : JSON.stringify({ 
-                text : noteText,
-                imageUrl: uploadedImageUrl 
-            }) 
-        });
-
-        noteInput.value = "";
-        if (fileInput) fileInput.value = ""; 
         
+        noteInput.value = "";
+        if (fileInput) fileInput.value = "";
+                
         await delay(150); 
         await fetchAndLoadNotes();
     } catch(error) {

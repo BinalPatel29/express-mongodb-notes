@@ -6,7 +6,7 @@ import logger from '../utils/logger.js';
 import Note from '../../models/noteModel.js';
 
 const redisOptions = { 
-    host: process.env.REDIS_HOST || "127.0.0.1", 
+    host: process.env.REDIS_HOST || (process.env.DOCKER_ENV === 'true' ? "redis" : "127.0.0.1"), 
     port: parseInt(process.env.REDIS_PORT || "6379", 10),
     maxRetriesPerRequest: null 
 };
@@ -39,6 +39,15 @@ export function startImageWorker() {
         const imageUrl = `http://localhost:3000/uploads/${filename}`;
         const note = new Note({ text, userId, imageUrl });
         await note.save();
+
+        if (global.redisClient) {
+            const staleCachePattern = `notes:${userId}:*`;
+            const matchingKeys = await global.redisClient.keys(staleCachePattern);
+            if (matchingKeys.length > 0) {
+                await global.redisClient.del(matchingKeys);
+                logger.info({ userId }, "Stale pagination cache buffers cleared for live data sync");
+            }
+        }
 
         if (global.io) {
             global.io.emit('liveNotification', { 

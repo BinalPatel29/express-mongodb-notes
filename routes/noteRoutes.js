@@ -155,38 +155,62 @@ router.get('/stats/activity', asyncHandler(async (req, res, next) => {
     });
 }));
 
-router.post('/upload', asyncHandler(async (req, res, next) => { 
-    if (!req.files || !req.files.image) { 
-        return res.status(400).json({ success: false, message: 'No file uploaded', code: 'VALIDATION_ERROR' }); 
-    } 
+router.post('/upload', asyncHandler(async (req, res, next) => {
+    const logContext = { path: '/upload', method: 'POST' };
 
-    const file = req.files.image; 
-    const payload = { text: req.body.text || "Uploaded Image Note", userId: req.userId }; 
-    const { error } = validateNote(payload); 
-    if (error) { 
-        return res.status(400).json({ success: false, message: error, code: 'VALIDATION_ERROR' }); 
-    } 
+    if (!req.files || !req.files.image) {
+        logger.warn({ ...logContext }, "Image upload rejected: Missing file target");
+        return res.status(400).json({
+            success: false,
+            message: "No image file uploaded.",
+            code: 'VALIDATION_ERROR'
+        });
+    }
 
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9); 
-    const filename = uniqueSuffix + path.extname(file.name || 'test-image.png'); 
-    
-    const bufferData = file.data.toString('base64'); 
+    const bodyData = req.body || {};
+    const noteText = typeof bodyData.text === 'string' ? bodyData.text.trim() : "";
 
-    const job = await imageQueue.add('optimizeImage', { 
-        originalname: file.name, 
-        bufferData, 
-        filename, 
-        isTest: process.env.NODE_ENV === 'test', 
-        mimetype: file.mimetype, 
-        text: payload.text, 
+    const payload = { 
+        text: noteText, 
         userId: req.userId 
-    }, { 
-        attempts: 3, 
-        backoff: { type: 'exponential', delay: 2000 } 
-    }); 
+    };
 
-    logger.info({ jobId: job.id, filename }, 'Image offloaded to background queue process successfully'); 
-    return res.status(202).json({ success: true, message: "Image uploaded and queued", jobId: job.id }); 
+    const { error } = validateNote(payload);
+    if (error) {
+        logger.warn({ ...logContext, validationError: error }, "Image upload rejected: Joi validator rules check failed");
+        return res.status(400).json({
+            success: false,
+            message: error,
+            code: 'VALIDATION_ERROR'
+        });
+    }
+
+    const file = req.files.image;
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const filename = uniqueSuffix + path.extname(file.name || 'upload.png');
+    
+    const bufferData = file.data.toString('base64');
+
+    const job = await imageQueue.add('optimizeImage', {
+        originalname: file.name,
+        bufferData,
+        filename,
+        isTest: process.env.NODE_ENV === 'test',
+        mimetype: file.mimetype,
+        text: payload.text,
+        userId: req.userId
+    }, {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 }
+    });
+
+    logger.info({ ...logContext, jobId: job.id, filename }, 'Image offloaded to background queue process successfully');
+
+    return res.status(202).json({
+        success: true,
+        message: "Image uploaded and queued for background optimization processing.",
+        jobId: job.id
+    });
 }));
 
 router.post('/', asyncHandler(async (req, res, next) => {

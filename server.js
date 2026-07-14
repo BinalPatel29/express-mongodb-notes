@@ -18,6 +18,11 @@ import fileUpload from 'express-fileupload';
 import { imageQueue } from './src/queue/imageQueue.js';
 import { ExpressAdapter } from '@bull-board/express';
 import { createBullBoard } from '@bull-board/api';
+
+if (!process.env.REDIS_HOST && process.env.DOCKER_ENV !== 'true') {
+    process.env.REDIS_HOST = '127.0.0.1';
+}
+
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import './src/worker/imageWorker.js';
 
