@@ -171,10 +171,30 @@ io.on('connection', (socket) => {
     });
 });
 
-app.get('/api/new', (req, res) => {
-    logger.info({ path: '/api/new', method: 'GET' }, 'Healthcheck baseline verification requested');
-    res.status(200).json({ message: 'ok' });
+app.get('/health', async (req, res) => {
+    const mongoStatus = mongoose.connection.readyState === 1 ? 'healthy' : 'unhealthy';
+    const redisStatus = (redisClient && redisClient.isOpen) ? 'healthy' : 'unhealthy';
+    
+    const isHealthy = mongoStatus === 'healthy' && redisStatus === 'healthy';
+    
+    logger.info({ 
+        path: '/health', 
+        method: 'GET', 
+        status: isHealthy ? 'UP' : 'DOWN',
+        mongo: mongoStatus,
+        redis: redisStatus
+    }, 'Infrastructure healthcheck verification pinged');
+
+    return res.status(isHealthy ? 200 : 503).json({
+        status: isHealthy ? 'UP' : 'DOWN',
+        timestamp: new Date().toISOString(),
+        services: {
+            database: mongoStatus,
+            cache: redisStatus
+        }
+    });
 });
+app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', authLimiter, authRouter);
