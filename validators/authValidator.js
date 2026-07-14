@@ -6,7 +6,7 @@ export function validateRegister(user) {
     lastName: joi.string().min(3).required(),
     email: joi.string().email().min(5).max(50).required(),
     password: joi.string().min(6).required(),
-    mobileNo: joi.string().length(10).pattern(/^[0-9]+$/).required(),
+    mobileNo: joi.string().length(10).pattern(/^[0-9]+$/),
   });
 
   const { error, value } = registerSchema.validate(user, { abortEarly: false });

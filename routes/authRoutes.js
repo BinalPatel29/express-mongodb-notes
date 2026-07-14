@@ -27,7 +27,6 @@ const cookieClearOptions = {
     path: '/' 
 }; 
 
-// FIXED REGISTRATION ROUTE PIPELINE
 router.post('/register', asyncHandler(async (req, res, next) => { 
     const logContext = { path: '/register', method: 'POST' }; 
     const { error, value } = validateRegister(req.body); 
