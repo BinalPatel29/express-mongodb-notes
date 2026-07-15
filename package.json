@@ -14,6 +14,9 @@
   "type": "module",
   "dependencies": {
     "@bull-board/express": "^8.1.2",
+    "@socket.io/cluster-adapter": "^0.3.0",
+    "@socket.io/redis-adapter": "^8.3.0",
+    "@socket.io/sticky": "^1.0.4",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "bullmq": "^5.80.0",
