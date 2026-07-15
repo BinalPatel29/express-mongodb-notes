@@ -10,7 +10,9 @@ const errorEl = document.getElementById('errorMessage');
 
 const toastBanner = document.getElementById('notification-toast');
 const toastMessage = document.getElementById('notification-message');
-const socket = io();
+const socket = io('http://localhost:3000', {
+    withCredentials: true
+});
 
 socket.on('liveNotification', (data) => {
     if (toastBanner && toastMessage) {
