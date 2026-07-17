@@ -1,6 +1,11 @@
 export default {
   testEnvironment: 'node',
-  transform: {}, 
   verbose: true,
-  testTimeout: 30000
+  testTimeout: 30000,
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', { useESM: true }]
+  },
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1'
+  }
 };
