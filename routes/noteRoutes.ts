@@ -1,57 +1,64 @@
-import { Router } from 'express';
-import util from 'util';
-import jwt from 'jsonwebtoken';
+import { Router, Request, Response, NextFunction } from 'express';
 import Note from '../models/noteModel.js';
-import User from '../models/userModel.js';
 import { validateNote } from '../validators/noteValidator.js';
 import logger from '../src/utils/logger.js';
 import { Types } from 'mongoose';
-import sharp from 'sharp';
 import path from 'path';
-import fs from 'fs';
 import { imageQueue } from '../src/queue/imageQueue.js';
+
+interface CustomRequest extends Request {
+  userId?: string;
+  files?: any;
+}
+
+interface EnhancedError extends Error {
+  statusCode?: number;
+}
 
 const router = Router();
 const CACHE_TTL_SECONDS = 86400;
-const verifyJwtAsync = util.promisify(jwt.verify);
 
-const asyncHandler = (fn) => (req, res, next) => {
+const asyncHandler = (fn: Function) => (req: CustomRequest, res: Response, next: NextFunction) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
-async function invalidateUserCache(userId, specificNoteId = null) {
-    if (global.redisClient) {
+async function invalidateUserCache(userId: unknown, specificNoteId: string | null = null): Promise<void> {
+    const redis = (global as any).redisClient;
+    if (redis) {
         try {
             const cleanUserId = String(userId);
             const matchPattern = `notes:${userId}:*`;
-            const keysToDelete = await global.redisClient.keys(matchPattern);
+            const keysToDelete = await (global as any).redisClient.keys(matchPattern);
 
             if (keysToDelete.length > 0) {
-                await global.redisClient.del(keysToDelete);
+                await (global as any).redisClient.del(keysToDelete);
             }
 
             if (specificNoteId) {
-                await global.redisClient.del(`note:${cleanUserId}:${specificNoteId}`);
+                await (global as any).redisClient.del(`note:${cleanUserId}:${specificNoteId}`);
             }
 
             logger.info(
             { userId: cleanUserId, specificNoteId, listingCleared: keysToDelete.length },
             "Redis Cache Invalidation Completed Successfully"
         );
-        } catch (scanError) {
+        } catch (scanError: any) {
             logger.error({ error: scanError.message, userId }, "Failed to clear Redis cache keys");
         }
     }
 }
 
-router.get('/', asyncHandler(async (req, res, next) => {
-    let { page = 1, limit = 10, sort = '-createdAt', text } = req.query;
-    page = Math.max(1, parseInt(page, 10) || 1);
-    limit = Math.max(1, parseInt(limit, 10) || 10);
+router.get('/', asyncHandler(async (req: CustomRequest, res: Response): Promise<Response | void> => {
+    let { page, limit, sort, text } = req.query;
+    const parsedPage = Math.max(1, parseInt(page as string, 10) || 1);
+    const parsedLimit = Math.max(1, parseInt(limit as string, 10) || 10);
+    const currentSort = (sort as string) || '-createdAt';
+    const currentText = (text as string) || '';
     const cachekeys = `notes:${req.userId}:p_${page}:l_${limit}:s_${sort}:t_${text || 'none'}`;
 
-    if (global.redisClient) {
-    const cachedListing = await global.redisClient.get(cachekeys);
+    const redis = (global as any).redisClient;
+    if (redis) {
+    const cachedListing = await (global as any).redisClient.get(cachekeys);
     
         if (cachedListing) {
             logger.info({ userId: req.userId, cacheKey: cachekeys }, "Redis List Cache HIT: Instantly returning matching pagination state records");
@@ -59,32 +66,33 @@ router.get('/', asyncHandler(async (req, res, next) => {
         }
     }
 
-    let user_id = new Types.ObjectId(req.userId);
-    const filter = { userId: user_id, ...(text && { text: { $regex: text, $options: 'i' } }) };
+    const currentUserId = req.userId || '';
+    const filter = { userId: currentUserId as any, ...(currentText && { text: { $regex: currentText, $options: 'i' } }) };
     const allowedSort = ['createdAt', 'updatedAt', 'text', '-createdAt', '-updatedAt', '-text'];
-    const finalSort = allowedSort.includes(sort) ? sort : '-createdAt';
+    const finalSort = allowedSort.includes(currentSort) ? currentSort : '-createdAt';
   
     logger.info({ filter });
 
     const [notes, totalItems] = await Promise.all([
-        Note.find(filter).sort(finalSort).skip((page - 1) * limit).limit(limit).lean(),
+        Note.find(filter).sort(finalSort).skip((parsedPage - 1) * parsedLimit).limit(parsedLimit).lean(),
         Note.countDocuments(filter)
     ]);
-    const responsePayload = { success: true, data: notes, pagination: { totalItems, totalPages: Math.ceil(totalItems / limit), currentPage: page } };
+    const responsePayload = { success: true, data: notes, pagination: { totalItems, totalPages: Math.ceil(totalItems / parsedLimit), currentPage: page } };
 
-    if (global.redisClient) {
-        await global.redisClient.setEx(cachekeys, CACHE_TTL_SECONDS, JSON.stringify(responsePayload));
+    if (redis) {
+        await (global as any).redisClient.setEx(cachekeys, CACHE_TTL_SECONDS, JSON.stringify(responsePayload));
     }
 
     res.json(responsePayload);
 }));
 
-router.get('/:id', asyncHandler(async (req, res, next) => {
-    const noteId = req.params.id;
+router.get('/:id', asyncHandler(async (req: CustomRequest, res: Response): Promise<Response | void> => {
+    const noteId = req.params['id'];
     const cacheKey = `note:${req.userId}:${noteId}`;
-
-    if (global.redisClient) {
-        const cachedNote = await global.redisClient.get(cacheKey);
+  
+    const redis = (global as any).redisClient;
+    if (redis) {
+        const cachedNote = await (global as any).redisClient.get(cacheKey);
         
         if (cachedNote) {
             logger.info({ userId: req.userId, noteId }, "Redis Single Cache HIT: Instantly returning single note record");
@@ -92,23 +100,24 @@ router.get('/:id', asyncHandler(async (req, res, next) => {
         }
     }
 
-    const note = await Note.findOne({ _id: noteId, userId: req.userId }).lean();
+    const currentUserId = req.userId || '';
+    const note = await Note.findOne({ _id: noteId, userId: currentUserId } as any).lean();
   
     if (!note) {
-        const notFoundError = new Error('Note not found');
+        const notFoundError: EnhancedError = new Error('Note not found');
         notFoundError.statusCode = 404;
         throw notFoundError;
     }
 
-    if (global.redisClient) {
-        await global.redisClient.setEx(cacheKey, CACHE_TTL_SECONDS, JSON.stringify(note));
+    if (redis) {
+        await (global as any).redisClient.setEx(cacheKey, CACHE_TTL_SECONDS, JSON.stringify(note));
     }
 
     logger.info({ userId: req.userId, noteId }, "Redis Single Cache MISS: Record successfully fetched from MongoDB");
     return res.json(note);
 }));
 
-router.get('/stats/activity', asyncHandler(async (req, res, next) => {
+router.get('/stats/activity', asyncHandler(async (req: CustomRequest, res: Response, next: NextFunction) => {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   
     const stats = await Note.aggregate([
@@ -135,7 +144,7 @@ router.get('/stats/activity', asyncHandler(async (req, res, next) => {
         {
             $unwind: {
             path: "$userProfile",
-            preserveNullAndEmptyLines: true
+            preserveNullAndEmptyArrays: true 
             }
         },
         {
@@ -155,7 +164,7 @@ router.get('/stats/activity', asyncHandler(async (req, res, next) => {
     });
 }));
 
-router.post('/upload', asyncHandler(async (req, res, next) => {
+router.post('/upload', asyncHandler(async (req: CustomRequest, res: Response, next: NextFunction) => {
     const logContext = { path: '/upload', method: 'POST' };
 
     if (!req.files || !req.files.image) {
@@ -213,7 +222,7 @@ router.post('/upload', asyncHandler(async (req, res, next) => {
     });
 }));
 
-router.post('/', asyncHandler(async (req, res, next) => {
+router.post('/', asyncHandler(async (req: CustomRequest, res: Response, next: NextFunction) => {
     const payload = { text: req.body.text, userId: req.userId, imageUrl: req.body.imageUrl };
     const { error } = validateNote(payload);
 
@@ -231,45 +240,45 @@ router.post('/', asyncHandler(async (req, res, next) => {
     res.status(201).json(note);
 }));
 
-router.patch('/:id', asyncHandler(async (req, res, next) => {
-    const payload = { text: req.body.text, userId: req.userId };
-    const { error } = validateNote(payload);
+router.patch('/:id', asyncHandler(async (req: CustomRequest, res: Response, next: NextFunction) => {
+    const payload = { text: req.body.text, userId: req.userId! };
+    const result = validateNote(payload);
     
-    if (error) {
+    if (!result.success) {
         return res.status(400).json({
             success: false,
-            message: error,
+            message: result.error,
             code: 'VALIDATION_ERROR'
         });
     }
   
-    const note = await Note.findOneAndUpdate(
-        { _id: req.params.id, userId: req.userId },
+    const note = await (Note as any).findOneAndUpdate(
+        { _id: req.params['id'], userId: req.userId },
         { text: req.body.text },
         { returnDocument: 'after' }
     );
   
     if (!note) {
-        const notFoundError = new Error('Note not found');
+        const notFoundError: EnhancedError = new Error('Note not found');
         notFoundError.statusCode = 404;
         throw notFoundError;
     }
   
-    await invalidateUserCache(req.userId, req.params.id);
+    await invalidateUserCache(req.userId, req.params['id'] as string);
     res.json({ message: 'Note updated successfully', note });
 }));
 
-router.delete('/:id', asyncHandler(async (req, res, next) => {
-    const note = await Note.findOneAndDelete({ _id: req.params.id, userId: req.userId }).exec();
+router.delete('/:id', asyncHandler(async (req: CustomRequest, res: Response): Promise<Response | void> => {
+    const note = await (Note as any).findOneAndDelete({ _id: req.params['id'], userId: req.userId }).exec();
   
     if (!note) {
-        const error = new Error('Note not found');
+        const error: EnhancedError = new Error('Note not found');
         error.name = 'OperationalError';
         error.statusCode = 404;
         throw error;
     }
   
-    await invalidateUserCache(req.userId, req.params.id);
+    await invalidateUserCache(req.userId, req.params['id'] as string);
     res.json({ message: 'Note deleted successfully' });
 }));
 
