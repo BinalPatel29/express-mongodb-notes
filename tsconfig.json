@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    // File Layout
+    "rootDir": "./",
+    "outDir": "./dist",
+
+    // JavaScript Support (Crucial for validation before conversion)
+    "allowJs": true,
+    "checkJs": false,
+
+    // Environment Settings
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "esnext",
+    "lib": ["esnext"],
+
+    // Interop & Core Behavior
+    "strict": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "isolatedModules": true,
+    "moduleDetection": "force"
+  },
+  "include": [
+    "middleware/**/*",
+    "models/**/*",
+    "routes/**/*",
+    "validators/**/*",
+    "cluster.js",
+    "eventLoop.js",
+    "server.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "frontend",
+    "coverage",
+    "tests"
+  ]
+}
