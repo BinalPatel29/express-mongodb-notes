@@ -24,6 +24,7 @@
   "include": [
     "middleware/**/*",
     "models/**/*",
+    "src/**/*",
     "routes/**/*",
     "validators/**/*",
     "cluster.js",
