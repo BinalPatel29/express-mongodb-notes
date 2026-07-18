@@ -21,7 +21,7 @@ export function protect(req: CustomRequest, res: Response, next: NextFunction) {
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, process.env['WT_SECRET'] || '') as jwt.JwtPayload;
+    const decoded = jwt.verify(token, process.env['JWT_SECRET'] || '') as jwt.JwtPayload;
     req.userId = decoded.userId;
     next();
   } catch (error) {
