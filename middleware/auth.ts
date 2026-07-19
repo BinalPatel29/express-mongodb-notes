@@ -17,7 +17,8 @@ export function protect(req: CustomRequest, res: Response, next: NextFunction) {
     return next(error); 
   } 
 
-  const token = authHeader.split(' ')[1]; 
+  const parts = authHeader.split(' '); 
+  const token = parts[1]?.trim(); 
   
   if (!token) {
     const error: EnhanceError = new Error("Malformed token configuration");
