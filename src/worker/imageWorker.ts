@@ -3,6 +3,7 @@ import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
 import logger from '../utils/logger.js';
+import { ServerClientEvents } from '../utils/logger.js';
 import Note from '../../models/noteModel.js';
 
 export interface IImageJobPayload {
@@ -68,7 +69,12 @@ export function startImageWorker(): Worker {
 
     const io = (global as any).io;
     if (io) {
-      io.emit('liveNotification', { text: `image resizing successfully: ${originalname}`, filename: filename });
+      const notificationData: Parameters<ServerClientEvents['liveNotification']>[0] = {
+        text: `image resizing successfully: ${originalname}`,
+        filename: filename
+      };
+      
+      (io as any).emit('liveNotification', notificationData);
     }
 
     logger.info({ jobId: job.id, filename }, "Background image optimization completed successfully");
