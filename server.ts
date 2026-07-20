@@ -175,7 +175,7 @@ async function startDatabases(): Promise<void> {
     }
 
     try {
-      await User.syncIndexes();
+      await mongoose.connection.db?.collection('users').createIndex({ email: 1 }, { unique: true });
       logger.info(`[Worker ${process.pid}] Database collection indexes synchronized successfully`);
     } catch (indexError: unknown) {
       const errMsg = indexError instanceof Error ? indexError.message : String(indexError);
