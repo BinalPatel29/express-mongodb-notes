@@ -6,7 +6,7 @@ interface SystemError extends Error {
 
 const uppercaseTransform: Transform = new Transform({
   highWaterMark: 16 * 1024,
-  transform(chunk: any, encoding: BufferEncoding, callback: TransformCallback): void {
+  transform(chunk: Buffer | string, encoding: BufferEncoding, callback: TransformCallback): void {
     try {
       const upperText: string = chunk.toString('utf8').toUpperCase();
       this.push(upperText);

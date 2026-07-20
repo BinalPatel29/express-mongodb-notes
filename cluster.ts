@@ -10,7 +10,7 @@ import logger from './src/utils/logger.js';
 const PORT: string | number = process.env.PORT || 3000;
 const numCPUs: number = os.cpus().length;
 
-if (cluster.isPrimary || (cluster as any).isMaster) {
+if (cluster.isPrimary) {
   logger.info(`Primary cluster master process ${process.pid} is running smoothly.`);
 
   const primaryServer: Server = createServer();
