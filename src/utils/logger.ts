@@ -22,7 +22,7 @@ const logger = pino({
     mixin() {
         return { service: 'note-api-service' };
     },
-    transport: {
+    transport: process.env.NODE_ENV !== 'production' ? {
         target: 'pino-pretty',
         options: {
             colorize: true,          
@@ -31,7 +31,7 @@ const logger = pino({
             singleLine: false,       
             messageFormat: '{msg}'   
         }
-    }
+    } : undefined
 });
 
 export default logger;
