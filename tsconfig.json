@@ -27,7 +27,7 @@
     "src/**/*",
     "routes/**/*",
     "validators/**/*",
-    "cluster.js",
+    "cluster.ts",
     "eventLoop.js",
     "server.ts"
   ],
