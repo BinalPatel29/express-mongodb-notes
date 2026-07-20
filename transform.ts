@@ -6,19 +6,17 @@ interface SystemError extends Error {
 
 const uppercaseTransform: Transform = new Transform({
   highWaterMark: 16 * 1024,
-  transform(chunk: Buffer | string, encoding: BufferEncoding, callback: TransformCallback): void {
+  transform(this: Transform, chunk: Buffer | string, encoding: BufferEncoding, callback: TransformCallback): void {
     try {
       const upperText: string = chunk.toString('utf8').toUpperCase();
       this.push(upperText);
-      
+
       const mem: NodeJS.MemoryUsage = process.memoryUsage();
       console.error(
-        // RSS tracks total machine memory used by the application, Heap Total shows the RAM allocated for variables, and Heap Used shows exactly how much memory is actively occupied
         `\n[Memory Profile] RSS: ${(mem.rss / 1024 / 1024).toFixed(2)} MB | ` +
         `Heap Total: ${(mem.heapTotal / 1024 / 1024).toFixed(2)} MB | ` +
         `Heap Used: ${(mem.heapUsed / 1024 / 1024).toFixed(2)} MB`
       );
-
       callback(null);
     } catch (error: unknown) {
       callback(error instanceof Error ? error : new Error(String(error)));

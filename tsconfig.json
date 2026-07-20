@@ -1,25 +1,21 @@
 {
   "compilerOptions": {
-    // File Layout
     "rootDir": "./",
     "outDir": "./dist",
-
-    // JavaScript Support (Crucial for validation before conversion)
     "allowJs": true,
     "checkJs": false,
-
-    // Environment Settings
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "target": "esnext",
     "lib": ["esnext"],
-
-    // Interop & Core Behavior
     "strict": true,
     "skipLibCheck": true,
     "sourceMap": true,
     "isolatedModules": true,
-    "moduleDetection": "force"
+    "moduleDetection": "force",
+    
+    // FIXED: Added global type context support for the Node runtime environment
+    "types": ["node"]
   },
   "include": [
     "middleware/**/*",
@@ -29,7 +25,8 @@
     "validators/**/*",
     "cluster.ts",
     "eventLoop.js",
-    "server.ts"
+    "server.ts",
+    "transform.ts"
   ],
   "exclude": [
     "node_modules",
