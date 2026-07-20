@@ -124,8 +124,10 @@ const loginLimiter = rateLimit({
   }
 });
 
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
+// parsing objects requires safe type-guarding via 'unknown'
+app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+  // Added safety verification before looking up properties inside 'unknown' type
+  if (err && typeof err === 'object' && 'status' in err && err.status === 400 && 'body' in err) {
     logger.warn({ path: req.path, method: req.method }, 'Incoming request failed: Malformed JSON payload received');
     return res.status(400).json({ status: 400, message: 'Malformed JSON payload' });
   }
@@ -165,20 +167,23 @@ async function startDatabases(): Promise<void> {
       global.redisClient = redisClient;
 
       io.adapter(createAdapter(pubClient, subClient)); 
-
-    } catch (redisError: any) {
-      logger.error({ error: redisError.message }, 'Critical initialization error: Redis setup failed');
+      //'unknown' depending on tsconfig. Checking instance structures keeps logs type-safe
+    } catch (redisError: unknown) {
+      const errMsg = redisError instanceof Error ? redisError.message : String(redisError);
+      logger.error({ error: errMsg }, 'Critical initialization error: Redis setup failed');
       global.redisClient = null;
     }
 
     try {
       await User.syncIndexes();
       logger.info(`[Worker ${process.pid}] Database collection indexes synchronized successfully`);
-    } catch (indexError: any) {
-      logger.warn({ error: indexError.message }, 'Non-fatal database index synchronization warning');
+    } catch (indexError: unknown) {
+      const errMsg = indexError instanceof Error ? indexError.message : String(indexError);
+      logger.warn({ error: errMsg }, 'Non-fatal database index synchronization warning');
     }
-  } catch (err: any) {
-    logger.error({ error: err.message }, 'Database connection failed. MongoDB container might still be starting up.');
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    logger.error({ error: errMsg}, 'Database connection failed. MongoDB container might still be starting up.');
     logger.info('Re-queueing operational connection establishment routing handshake in 5 seconds...');
     setTimeout(startDatabases, 5000);
   }
@@ -234,14 +239,19 @@ app.use((req: Request, res: Response) => {
 });
 
 app.use(errorHandler);
-
-const workerServer = httpServer.listen(PORT, () => {
-    logger.info(`Server infrastructure online: Process ${process.pid} listening on port ${PORT}`);
-});
+let workerServer: any = null;
+if (cluster.isPrimary) {
+  httpServer.listen(PORT, () => {
+    logger.info(`Server infrastructure online: Standalone Process ${process.pid} listening on port ${PORT}`);
+  });
+} else {
+  logger.info(`Server infrastructure active: Worker Node ${process.pid} processing proxy network handshakes internally.`);
+}
 
 async function handleShutdown(signal: string): Promise<void> {
   logger.info({ signal, pid: process.pid }, "Received shutdown signal. Commencing clean disconnection procedures...");
   try {
+    //'any' FOR DYNAMIC IMPORT: Required because dynamic paths cannot be statically analyzed at compile time
     const workerModule: any= await import('./src/worker/imageWorker.js');
     const imageWorker = workerModule.default || workerModule.imageWorker || workerModule;
     
@@ -258,12 +268,18 @@ async function handleShutdown(signal: string): Promise<void> {
     if (subClient.isOpen) await subClient.quit();
     logger.info('Caching and Pub/Sub Layer Redis connections terminated.');
 
-    workerServer.close(() => {
-      logger.info('HTTP worker node infrastructure offline. Exiting process safely.');
+    if (cluster.isPrimary && workerServer) {
+      workerServer.close(() => {
+        logger.info('HTTP server instance offline. Exiting process safely.');
+        process.exit(0);
+      });
+    } else {
+      logger.info('Worker process resources dropped. Terminating instance sequence.');
       process.exit(0);
-    });
-  } catch (err: any) {
-    logger.error({ error: err.message }, 'Error occurred during lifecycle graceful shutdown');
+    }
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    logger.error({ error: errMsg }, 'Error occurred during lifecycle graceful shutdown');
     process.exit(1);
   }
 }

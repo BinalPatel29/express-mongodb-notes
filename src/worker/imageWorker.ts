@@ -2,18 +2,25 @@ import { Worker, Job } from 'bullmq';
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
+import { RedisClientType } from 'redis';
+import { Server } from 'socket.io';
 import logger from '../utils/logger.js';
 import { ServerClientEvents } from '../utils/logger.js';
 import Note from '../../models/noteModel.js';
 
+declare global {
+  var io: Server | undefined;
+  var redisClient: RedisClientType | null | undefined;
+}
+
 export interface IImageJobPayload {
   originalname: string;
-  bufferData: string;
-  filename: string;
+  bufferData: string | { type: string; data: number[] | string }; 
   isTest: boolean;
   mimetype: string;
   text: string;
   userId: string;
+  filename : string;
 }
 
 const redisOptions = process.env['REDIS_URL']
@@ -37,10 +44,17 @@ export function startImageWorker(): Worker {
   workerInstance = new Worker<IImageJobPayload>("imageJobQueue", async (job: Job<IImageJobPayload>) => {
     const { originalname, bufferData, filename, isTest, mimetype, text, userId } = job.data;
     const outputPath = path.join(uploadDir, filename);
-    
-    const base64String = typeof bufferData === 'string' ? bufferData : ((bufferData as any)?.data || "");
+
+    let base64String = '';
+    if (typeof bufferData === 'string') {
+      base64String = bufferData;
+    } else if (bufferData && typeof bufferData === 'object' && 'data' in bufferData) {
+      base64String = Array.isArray(bufferData.data) 
+        ? Buffer.from(bufferData.data).toString('base64') 
+        : String(bufferData.data);
+    }
+
     const fileBuffer = Buffer.from(base64String, 'base64');
-    
     logger.info({ jobId: job.id, filename }, "Background processing for image job started");
 
     if (isTest || !mimetype?.startsWith('image/')) {
@@ -53,7 +67,7 @@ export function startImageWorker(): Worker {
     const note = new Note({ text, userId, imageUrl });
     await note.save();
 
-    const redis = (global as any).redisClient;
+    const redis = global.redisClient;
     if (redis) {
       try {
         const staleCachePattern = `notes:${userId}:*`;
@@ -62,27 +76,26 @@ export function startImageWorker(): Worker {
           await redis.del(matchingKeys);
           logger.info({ userId }, "Stale pagination cache buffers cleared for live data sync");
         }
-      } catch (cacheError: any) {
-        logger.error({ error: cacheError.message, userId }, "Failed to clear background cache keys");
+      } catch (cacheError: unknown) {
+        const errMsg = cacheError instanceof Error ? cacheError.message : String(cacheError);
+        logger.error({ error: errMsg, userId }, "Failed to clear background cache keys");
       }
     }
 
-    const io = (global as any).io;
+    const io = global.io;
     if (io) {
       const notificationData: Parameters<ServerClientEvents['liveNotification']>[0] = {
         text: `image resizing successfully: ${originalname}`,
         filename: filename
       };
       
-      (io as any).emit('liveNotification', notificationData);
+      io.emit('liveNotification', notificationData);
     }
 
     logger.info({ jobId: job.id, filename }, "Background image optimization completed successfully");
-    return { imageUrl, noteId: note._id };
-  }, { 
-    connection: redisOptions, 
-    concurrency: 3 
-  });
+    
+    return { imageUrl, noteId: String(note._id) };
+  }, { connection: redisOptions, concurrency: 3 });
 
   workerInstance.on('failed', (job: Job<IImageJobPayload> | undefined, err: Error) => {
     logger.error({ jobId: job?.id, error: err.message }, "Background image optimization job failed");

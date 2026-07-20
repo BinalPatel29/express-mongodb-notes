@@ -21,7 +21,7 @@ interface IValidationSuccess<T> {
 
 interface IValidationFailure {
   success: false;
-  value: any;
+  value: unknown;
   error: Record<string, string>;
 }
 

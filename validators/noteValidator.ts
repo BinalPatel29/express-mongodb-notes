@@ -1,7 +1,14 @@
 import joi from 'joi';
 import joiObjectId from 'joi-objectid';
 
-(joi as any).objectId = joiObjectId(joi);
+// extend Joi's type interface so the rest of app gets full autocomplete
+declare module 'joi' {
+  interface Root {
+    objectId(): joi.StringSchema;
+  }
+}
+// Cast the extension object
+joi.objectId = joiObjectId(joi) as unknown as () => joi.StringSchema;
 
 interface INoteInput {
   text: string;
@@ -18,7 +25,7 @@ interface IValidationSuccess{
 
 interface IValidationFailure{
   success: false;
-  value: any;
+  value: unknown;
   error: Record<string, string>;
 }
 
@@ -34,7 +41,7 @@ export const validateNote = (note: unknown): validationResult  => {
         'string.empty': 'Note text field cannot be left blank.',
         'string.min': 'Note text must be at least 2 characters long.'
       }),
-    userId: (joi as any).objectId().required(),
+    userId: joi.objectId().required(),
     createdAt: joi.date().iso(),
     imageUrl: joi.string().allow('').optional()
   });
