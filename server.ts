@@ -83,7 +83,7 @@ const corsOptions: cors.CorsOptions = {
 };
 app.use(cors(corsOptions));
 
-app.get('/metrics', async (req:Request, res:Response) => {
+app.get('/metrics', async (req: Request, res: Response) => {
   res.set('Content-Type', registry.contentType);
   res.end(await registry.metrics());
 });
