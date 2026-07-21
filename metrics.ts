@@ -29,13 +29,13 @@ const cacheMissTotal = new Counter({
     registers: [register]
 });
 
-const queueJobWaiting = new Gauge({
+const queueJobsWaiting = new Gauge({
     name: 'queue_jobs_waiting',
     help: 'How How many image-resize jobs are currently sitting in the BullMQ queue',
     registers: [register]
 });
 
-const queueDurationSeconds = new Histogram({
+const queueJobDurationSeconds = new Histogram({
     name: 'queue_job_duration_seconds',
     help: 'How long the worker actually takes to resize an image',
     buckets: [0.5, 1, 2, 5, 10, 30],
@@ -56,4 +56,4 @@ function recordRequest(
     });
 }
 
-export { registry , recordRequest , httpRequestDurationSeconds , cacheHitTotal , cacheMissTotal , queueJobWaiting , queueDurationSeconds };
+export { registry , recordRequest , httpRequestDurationSeconds , cacheHitTotal , cacheMissTotal , queueJobsWaiting , queueJobDurationSeconds };
