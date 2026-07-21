@@ -6,6 +6,7 @@ import { Types } from 'mongoose';
 import path from 'path';
 import { imageQueue } from '../src/queue/imageQueue.js';
 import { RedisClientType } from 'redis';
+import { cacheHitTotal, cacheMissTotal } from '../metrics.js';
 
 declare global {
   var redisClient: RedisClientType | null | undefined;
@@ -61,13 +62,16 @@ router.get('/', asyncHandler(async (req: CustomRequest, res: Response): Promise<
   const currentUserId = req.userId || '';
   const cachekeys = `notes:${currentUserId}:p_${parsedPage}:l_${parsedLimit}:s_${currentSort}:t_${currentText || 'none'}`;
   const redis = global.redisClient;
+
   if (redis) {
-    const cachedListing = await redis.get(cachekeys);
-    if (cachedListing) {
-      logger.info({ userId: currentUserId, cacheKey: cachekeys }, "Redis List Cache HIT: Instantly returning matching pagination state records");
-      return res.json(JSON.parse(cachedListing));
-    }
+      const cachedListing = await redis.get(cachekeys); 
+      if (cachedListing) {
+          cacheHitTotal.inc(); 
+          logger.info({ userId: currentUserId, cacheKey: cachekeys }, "Redis List Cache HIT...");
+          return res.json(JSON.parse(cachedListing));
+     }
   }
+  cacheMissTotal.inc(); 
   
   // Mongoose queries expect custom ObjectId types, which throws errors against pure strings
   const filter = { userId: currentUserId as any, ...(currentText && { text: { $regex: currentText, $options: 'i' } }) };
@@ -93,10 +97,12 @@ router.get('/:id', asyncHandler(async (req: CustomRequest, res: Response): Promi
   if (redis) {
     const cachedNote = await redis.get(cacheKey);
     if (cachedNote) {
+      cacheHitTotal.inc();
       logger.info({ userId: currentUserId, noteId }, "Redis Single Cache HIT: Instantly returning single note record");
       return res.json(JSON.parse(cachedNote));
     }
   }
+  cacheMissTotal.inc(); 
   // Overcomes strict typing conflicts between string fields and schema object structures.
   const note = await Note.findOne({ _id: noteId, userId: currentUserId } as any).lean();
   if (!note) {

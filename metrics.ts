@@ -17,13 +17,13 @@ const httpRequestDurationSeconds = new Histogram({
     registers: [register]
 })
 
-const cacheHitTotals = new Counter({
+const cacheHitTotal = new Counter({
     name: 'cache_hits_total',
     help: 'How often the redis cache actually helping',
     registers: [registry]
 });
 
-const cacheMissTotals = new Counter({
+const cacheMissTotal = new Counter({
     name: 'chache_misses_total',
     help: 'How often the redis cache lacks requested data',
     registers: [register]
@@ -56,4 +56,4 @@ function recordRequest(
     });
 }
 
-export { registry , recordRequest , httpRequestDurationSeconds , cacheHitTotals , cacheMissTotals , queueJobWaiting , queueDurationSeconds };
+export { registry , recordRequest , httpRequestDurationSeconds , cacheHitTotal , cacheMissTotal , queueJobWaiting , queueDurationSeconds };
