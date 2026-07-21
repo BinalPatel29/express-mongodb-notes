@@ -22,6 +22,8 @@ import { imageQueue } from './src/queue/imageQueue.js';
 import { setupWorker } from "@socket.io/sticky";
 import { createAdapter } from "@socket.io/redis-adapter";
 import cluster from 'cluster';
+import { metricsMiddleware } from './middleware/metricsMiddleware.js';
+import { registry } from './metrics.js';
 
 declare global {
   var io: Server | undefined;
@@ -81,6 +83,11 @@ const corsOptions: cors.CorsOptions = {
 };
 app.use(cors(corsOptions));
 
+app.get('/metrics', async (req:Request, res:Response) => {
+  res.set('Content-Type', registry.contentType);
+  res.end(await registry.metrics());
+});
+
 app.use('/frontend', express.static('frontend'));
 app.use('/js', express.static('js'));
 app.use('/css', express.static('css'));
@@ -99,6 +106,8 @@ const globalLimiter = rateLimit({
   }
 });
 app.use(globalLimiter);
+
+app.use(metricsMiddleware);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

@@ -26,7 +26,8 @@
     "cluster.ts",
     "eventLoop.js",
     "server.ts",
-    "transform.ts"
+    "transform.ts",
+    "metrics.ts"
   ],
   "exclude": [
     "node_modules",
