@@ -101,14 +101,7 @@ export function startImageWorker(): Worker {
     }
   }, { connection: redisOptions, concurrency: 3 });
 
-  // LISTEN TO COMPLETED EVENTS TO DROP THE BACKLOG GAUGE
-  workerInstance.on('completed', () => {
-    queueJobsWaiting.dec();
-  });
-
   workerInstance.on('failed', (job: Job<IImageJobPayload> | undefined, err: Error) => {
-    // DROP THE BACKLOG GAUGE ON FAILURE AS WELL
-    queueJobsWaiting.dec();
     logger.error({ jobId: job?.id, error: err.message }, "Background image optimization job failed");
   });
 

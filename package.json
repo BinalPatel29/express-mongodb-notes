@@ -4,10 +4,10 @@
   "description": "",
   "main": "server.ts",
   "scripts": {
-    "start": "node server.ts",
-    "dev": "tsx watch server.ts",
-    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand --detectOpenHandles",
-    "build": "tsc"
+  "start": "npx tsx server.ts",
+  "dev": "tsx watch server.ts",
+  "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand --detectOpenHandles",
+  "build": "tsc"
   },
   "keywords": [],
   "author": "",

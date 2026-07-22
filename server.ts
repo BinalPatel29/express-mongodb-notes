@@ -12,7 +12,7 @@ import { rateLimit, Options } from 'express-rate-limit';
 import { ExpressAdapter } from '@bull-board/express';
 import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
-import authRouter from './routes/authRoutes.js';
+import authRoutes from './routes/authRoutes.js';
 import noteRouter from './routes/noteRoutes.js';
 import { protect } from './middleware/auth.js';
 import logger from './src/utils/logger.js';
@@ -235,7 +235,7 @@ app.get('/health', async (req: Request, res: Response) => {
 app.get('/favicon.ico', (req: Request, res: Response) => res.status(204).end());
 
 app.use('/api/auth/login', loginLimiter);
-app.use('/api/auth', authLimiter, authRouter);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/notes', protect, noteRouter);
 
 app.get('/', (req: Request, res: Response) => {
