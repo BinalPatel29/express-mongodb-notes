@@ -1,5 +1,5 @@
 import { Counter, Registry, Histogram, Gauge } from 'prom-client';
-import { Queue } from 'bullmq'; // Ensure you have bullmq types installed
+import { Queue } from 'bullmq'; 
 
 const registry = new Registry();
 
@@ -25,7 +25,7 @@ const cacheHitTotal = new Counter({
 });
 
 const cacheMissTotal = new Counter({
-  name: 'cache_misses_total', // Maintained your original typo to keep continuity with existing dashboards
+  name: 'cache_misses_total',
   help: 'How often the redis cache lacks requested data',
   registers: [registry]
 });
