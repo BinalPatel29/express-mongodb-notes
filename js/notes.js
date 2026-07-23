@@ -14,16 +14,16 @@ const socket = io('http://localhost:3000', {
     withCredentials: true
 });
 
-socket.on('liveNotification', (data) => {
+socket.on('liveNotification', async (data) => {
+    const notificationText = typeof data === 'object' && data !== null ? data.text : data;
     if (toastBanner && toastMessage) {
-        toastMessage.textContent = data.text;
-    
+        toastMessage.textContent = notificationText || "Image updated successfully";
         toastBanner.style.display = 'flex';
-
         setTimeout(() => {
             toastBanner.style.display = 'none';
         }, 4000);
     }
+    await fetchAndLoadNotes();
 });
 
 function showError(message){
@@ -143,7 +143,7 @@ async function displayNotes(notesArray){
 
 async function handleAddNote() {
     showError("");
-    const noteText = noteInput.value.trim(); // Grab the string value inside your note text box
+    const noteText = noteInput.value.trim();
     
     if (!noteText || noteText.length < 2) {
         showError("Please enter text content for your note (minimum 2 characters).");
@@ -166,8 +166,14 @@ async function handleAddNote() {
                 body: formData 
             });
             
-            showError("Image note queued for background processing! It will appear on your feed shortly.");
-        } 
+            if (toastBanner && toastMessage) {
+                toastMessage.textContent = "Image note queued for background processing! It will appear on your feed shortly.";
+                toastBanner.style.display = 'flex';
+                setTimeout(() => {
+                    toastBanner.style.display = 'none';
+                }, 4000);
+            }
+        }
         else {
             await apiFetch('/api/notes', { 
                 method : "POST", 
