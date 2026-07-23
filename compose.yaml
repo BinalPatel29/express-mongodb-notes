@@ -24,6 +24,18 @@ services:
       retries: 3
       start_period: 10s
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: metrics-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml 
+    networks:
+      - app-network
+    depends_on:
+      - note-api-service
+
   mongo:
     image: mongo:latest
     container_name: mongo
