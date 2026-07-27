@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   note-api-service:
     build: .
@@ -11,6 +13,8 @@ services:
       - REDIS_URL=redis://redis:6379
       - REDIS_HOST=redis
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+    volumes:
+      - ./uploads:/app/uploads 
     networks:
       - app-network
     depends_on:
@@ -26,6 +30,29 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  note-api-worker:
+    build: .
+    env_file:
+      - .env
+    environment:
+      - DOCKER_ENV=true
+      - MONGO_URI=mongodb://mongo:27017/note_db
+      - REDIS_URL=redis://redis:6379
+      - REDIS_HOST=redis
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+    command: ["./node_modules/.bin/tsx", "src/worker/imageWorker.ts"]
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - app-network
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      note-api-service:
+        condition: service_healthy
 
   prometheus:
     image: prom/prometheus:latest
@@ -45,8 +72,8 @@ services:
     environment:
       - COLLECTOR_OTLP_ENABLED=true
     ports:
-      - "16686:16686" 
-      - "4318:4318"  
+      - "16686:16686"
+      - "4318:4318"
     networks:
       - app-network
 
