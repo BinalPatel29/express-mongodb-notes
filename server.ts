@@ -1,3 +1,4 @@
+import './instrumentation.js'; 
 import express, { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import 'dotenv/config';
@@ -24,6 +25,8 @@ import { createAdapter } from "@socket.io/redis-adapter";
 import cluster from 'cluster';
 import { metricsMiddleware } from './middleware/metricsMiddleware.js';
 import { registry } from './metrics.js';
+import { trace, context, propagation } from '@opentelemetry/api';
+import path from 'path';
 
 declare global {
   var io: Server | undefined;
@@ -65,7 +68,7 @@ global.io = io;
 app.use(express.json());
 app.use(cookieParser());
 app.use(fileUpload());
-app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use((helmet as any)({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000', 'http://127.0.0.1:5501'];
 const corsOptions: cors.CorsOptions = {
@@ -91,7 +94,7 @@ app.get('/metrics', async (req: Request, res: Response) => {
 app.use('/frontend', express.static('frontend'));
 app.use('/js', express.static('js'));
 app.use('/css', express.static('css'));
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(path.resolve('./uploads')));
 app.use(express.static('public'));
 
 const globalLimiter = rateLimit({
