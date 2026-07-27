@@ -13,8 +13,6 @@
     "sourceMap": true,
     "isolatedModules": true,
     "moduleDetection": "force",
-    
-    // FIXED: Added global type context support for the Node runtime environment
     "types": ["node"]
   },
   "include": [
@@ -27,7 +25,8 @@
     "eventLoop.js",
     "server.ts",
     "transform.ts",
-    "metrics.ts"
+    "metrics.ts",
+    "instrumentation.ts"
   ],
   "exclude": [
     "node_modules",
@@ -35,5 +34,10 @@
     "frontend",
     "coverage",
     "tests"
-  ]
+  ],
+  "ts-node": {
+    "logError": true,
+    "pretty": true,
+    "experimentalResolver": true
+  }
 }
