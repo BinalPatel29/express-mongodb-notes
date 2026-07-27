@@ -6,6 +6,7 @@ import { Types } from 'mongoose';
 import path from 'path';
 import { imageQueue } from '../src/queue/imageQueue.js';
 import { RedisClientType } from 'redis';
+import { trace, context, propagation } from '@opentelemetry/api';
 
 // Added queueJobsWaiting to metrics imports
 import { cacheHitTotal, cacheMissTotal, queueJobsWaiting } from '../metrics.js';
@@ -69,7 +70,7 @@ router.get('/', asyncHandler(async (req: CustomRequest, res: Response): Promise<
     if (cachedListing) {
       cacheHitTotal.inc();
       logger.info({ userId: currentUserId, cacheKey: cachekeys }, "Redis List Cache HIT...");
-      return res.json(JSON.parse(cachedListing));
+      return res.json(JSON.parse(cachedListing as string));
     }
   }
   cacheMissTotal.inc();
@@ -99,7 +100,7 @@ router.get('/:id', asyncHandler(async (req: CustomRequest, res: Response): Promi
     if (cachedNote) {
       cacheHitTotal.inc();
       logger.info({ userId: currentUserId, noteId }, "Redis Single Cache HIT: Instantly returning single note record");
-      return res.json(JSON.parse(cachedNote));
+      return res.json(JSON.parse(cachedNote as string));
     }
   }
   cacheMissTotal.inc();
@@ -132,27 +133,66 @@ router.get('/stats/activity', asyncHandler(async (req: CustomRequest, res: Respo
 
 router.post('/upload', asyncHandler(async (req: CustomRequest, res: Response): Promise<Response | void> => {
   const logContext = { path: '/upload', method: 'POST' };
+
   if (!req.files || !req.files.image) {
     logger.warn({ ...logContext }, "Image upload rejected: Missing file target");
     return res.status(400).json({ success: false, message: "No image file uploaded.", code: 'VALIDATION_ERROR' });
   }
+
   const bodyData = req.body || {};
   const noteText = typeof bodyData.text === 'string' ? bodyData.text.trim() : "";
   const currentUserId = req.userId || '';
+
   const payload = { text: noteText, userId: currentUserId };
   const result = validateNote(payload);
+
   if (!result.success) {
     logger.warn({ ...logContext, validationError: result.error }, "Image upload rejected: Joi validator rules check failed");
     return res.status(400).json({ success: false, message: "Validation failed", errors: result.error, code: 'VALIDATION_ERROR' });
   }
+
   const file = req.files.image;
   const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
   const filename = uniqueSuffix + path.extname(file.name || 'upload.png');
   const bufferData = file.data.toString('base64');
-  const job = await imageQueue.add('optimizeImage', { originalname: file.name, bufferData, filename, isTest: process.env['NODE_ENV'] === 'test', mimetype: file.mimetype, text: payload.text, userId: currentUserId }, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
-  
+
+  const tracer = trace.getTracer('note-routes');
+  const job = await tracer.startActiveSpan('BullMQ.enqueueJob', async (span) => {
+    try{
+      const telemetryCarrier: Record<string, string> = {};
+      propagation.inject(context.active(), telemetryCarrier);
+
+      const addedJob = await imageQueue.add('optimizeImage', {
+        originalname: file.name,
+        bufferData,
+        filename,
+        isTest: process.env['NODE_ENV'] === 'test',
+        mimetype: file.mimetype,
+        text: payload.text,
+        userId: currentUserId,
+        _telemetryContext: telemetryCarrier
+      },{
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 }
+      });
+       span.setStatus({ code: 1 });
+      return addedJob;
+    } catch (error: any) {
+      span.recordException(error);
+      span.setStatus({ code: 2, message: error.message }); 
+      throw error;
+    } finally {
+      span.end(); 
+    }
+  });
+
   logger.info({ ...logContext, jobId: job.id, filename }, 'Image offloaded to background queue process successfully');
-  return res.status(202).json({ success: true, message: "Image uploaded and queued for background optimization processing.", jobId: job.id });
+  
+  return res.status(202).json({ 
+    success: true, 
+    message: "Image uploaded and queued for background optimization processing.", 
+    jobId: job.id 
+  });
 }));
 
 // parsing objects requires safe type-guarding via 'unknown'
