@@ -1,3 +1,4 @@
+import '../../instrumentation.js'; 
 import { Worker, Job } from 'bullmq';
 import sharp from 'sharp';
 import path from 'path';
