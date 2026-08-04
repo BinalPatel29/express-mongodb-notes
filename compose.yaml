@@ -9,7 +9,7 @@ services:
       - .env
     environment:
       - DOCKER_ENV=true
-      - MONGO_URI=mongodb://mongo:27017/note_db
+      - MONGO_URI=mongodb://host.docker.internal:27017/note_db
       - REDIS_URL=redis://redis:6379
       - REDIS_HOST=redis
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
