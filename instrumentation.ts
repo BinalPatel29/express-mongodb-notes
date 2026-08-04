@@ -1,4 +1,3 @@
-import { register } from "node:module"; register("ts-node/esm", import.meta.url);
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
